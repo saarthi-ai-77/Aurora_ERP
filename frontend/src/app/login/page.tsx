@@ -26,9 +26,13 @@ export default function LoginPage() {
       setStoredAuth(data);
       router.push(getDashboardPath(data.user.role));
     } catch (err: any) {
-      const msg =
-        err?.response?.data?.message || "Invalid credentials. Please try again.";
-      setError(Array.isArray(msg) ? msg.join(", ") : msg);
+      if (err?.code === "ERR_NETWORK") {
+        setError("Cannot connect to the server. Please ensure the backend is running.");
+      } else {
+        const msg =
+          err?.response?.data?.message || "Invalid credentials. Please try again.";
+        setError(Array.isArray(msg) ? msg.join(", ") : msg);
+      }
     } finally {
       setIsLoading(false);
     }
@@ -64,7 +68,7 @@ export default function LoginPage() {
           </p>
         </div>
 
-        <form id="login-form" onSubmit={handleSubmit} className="space-y-5">
+        <form id="login-form" onSubmit={handleSubmit} className="space-y-5" suppressHydrationWarning>
           {/* Username / Email */}
           <div>
             <label

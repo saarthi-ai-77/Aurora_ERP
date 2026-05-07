@@ -1,5 +1,5 @@
 "use client";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import {
@@ -59,6 +59,12 @@ export default function Sidebar({ role, basePath }: SidebarProps) {
   const router = useRouter();
   const user = getStoredUser();
 
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
   const filteredItems = NAV_ITEMS.filter((item) => item.roles.includes(role));
 
   const handleLogout = async () => {
@@ -67,10 +73,12 @@ export default function Sidebar({ role, basePath }: SidebarProps) {
     router.push("/login");
   };
 
-  // Generate avatar initials from name
-  const initials = user?.name
-    ? user.name.split(" ").map((w) => w[0]).slice(0, 2).join("").toUpperCase()
+  // Generate avatar initials from name, but wait for mount to prevent hydration mismatch
+  const initials = mounted && user?.name
+    ? user.name.split(" ").map((w: string) => w[0]).slice(0, 2).join("").toUpperCase()
     : "U";
+
+  const displayName = mounted && user?.name ? user.name : "User";
 
   const SidebarContent = () => (
     <div
@@ -97,13 +105,14 @@ export default function Sidebar({ role, basePath }: SidebarProps) {
           className="text-sm font-semibold text-center leading-tight"
           style={{ color: "var(--text-primary)" }}
         >
-          {user?.name || "User"}
+          {displayName}
         </p>
         <span
           className="text-xs mt-1 px-2 py-0.5 rounded-full"
           style={{
-            background: "var(--green-light)",
-            color: "var(--green)",
+            background: "var(--bg-surface-2)",
+            color: "var(--text-secondary)",
+            border: "1px solid var(--border)",
             fontSize: "10px",
             fontWeight: 500,
           }}
@@ -113,11 +122,10 @@ export default function Sidebar({ role, basePath }: SidebarProps) {
       </div>
 
       {/* Navigation */}
-      <nav className="flex-1 py-2 overflow-y-auto">
+      <nav className="flex-1 py-4 overflow-y-auto">
         {filteredItems.map((item) => {
           const href = `${basePath}/${item.href}`;
           const isActive = pathname === href || pathname.startsWith(href + "/");
-          const Icon = item.icon;
 
           return (
             <Link
@@ -126,10 +134,6 @@ export default function Sidebar({ role, basePath }: SidebarProps) {
               onClick={() => setMobileOpen(false)}
               className={cn("nav-item", isActive && "active")}
             >
-              <Icon
-                className="flex-shrink-0"
-                style={{ width: "15px", height: "15px" }}
-              />
               <span>{item.label}</span>
             </Link>
           );

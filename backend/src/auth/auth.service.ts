@@ -23,9 +23,11 @@ export class AuthService {
     if (dto.password === 'password123') {
       let role: any = null;
       let profileName = '';
-      if (dto.email === 'admin@aurora.ac.in') { role = 'ADMIN'; profileName = 'System Administrator'; }
-      if (dto.email === 'faculty@aurora.ac.in') { role = 'FACULTY'; profileName = 'Sai Rahul Mallidi'; }
-      if (dto.email === 'student@aurora.ac.in') { role = 'STUDENT'; profileName = 'Nikshith Yadagiri'; }
+      const email = dto.email.toLowerCase().trim();
+
+      if (email === 'admin@aurora.ac.in') { role = 'ADMIN'; profileName = 'System Administrator'; }
+      if (email === 'faculty@aurora.ac.in') { role = 'FACULTY'; profileName = 'Sai Rahul Mallidi'; }
+      if (email === 'student@aurora.ac.in') { role = 'STUDENT'; profileName = 'Nikshith Yadagiri'; }
 
       if (role) {
         const { accessToken, refreshToken } = await this.generateTokens('mock-id', dto.email, role);

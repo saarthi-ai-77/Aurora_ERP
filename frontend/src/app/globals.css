@@ -3,25 +3,27 @@
 
 @layer base {
   :root {
-    /* Aurora ERP — Light Professional Theme */
-    --bg-page:        #f0f2f5;
+    /* Aurora ERP — Screenshot Match Theme */
+    --bg-page:        #f9fafb;
     --bg-surface:     #ffffff;
-    --bg-surface-2:   #f8f9fb;
-    --bg-hover:       #f0f4ff;
+    --bg-surface-2:   #f3f4f6;
+    --bg-hover:       #f9fafb;
     --bg-sidebar:     #ffffff;
 
-    --border:         #e2e5eb;
-    --border-strong:  #c8cdd8;
+    --border:         #e5e7eb;
+    --border-strong:  #d1d5db;
 
-    --text-primary:   #1a1f2e;
+    --text-primary:   #111827;
     --text-secondary: #4b5563;
-    --text-muted:     #9ca3af;
-    --text-placeholder: #b0b7c3;
+    --text-muted:     #6b7280;
+    --text-placeholder: #9ca3af;
 
-    --accent:         #1d4ed8;
-    --accent-hover:   #1e40af;
-    --accent-light:   #eff6ff;
-    --accent-border:  #bfdbfe;
+    --accent:         #4f46e5; /* Indigo */
+    --accent-hover:   #4338ca;
+    --accent-light:   #eef2ff;
+    --accent-border:  #c7d2fe;
+
+    --orange:         #f97316; /* Sidebar active line */
 
     --red:            #dc2626;
     --red-light:      #fef2f2;
@@ -87,7 +89,8 @@
   .badge {
     display: inline-flex;
     align-items: center;
-    padding: 2px 8px;
+    justify-content: center;
+    padding: 3px 10px;
     border-radius: 4px;
     font-size: 11px;
     font-weight: 500;
@@ -96,63 +99,57 @@
   }
 
   .badge-not-published {
-    background: var(--red-light);
-    color: var(--red);
-    border-color: var(--red-border);
-  }
-
-  .badge-submitted {
-    background: var(--green-light);
-    color: var(--green);
-    border-color: var(--green-border);
+    background: #ffffff;
+    color: #ef4444; /* Red */
+    border-color: #fecaca;
   }
 
   .badge-not-submitted {
-    background: var(--bg-surface-2);
-    color: var(--text-secondary);
-    border-color: var(--border);
+    background: #ffffff;
+    color: #4b5563;
+    border-color: #e5e7eb;
   }
 
   .badge-missed {
-    background: var(--red-light);
-    color: var(--red);
-    border-color: var(--red-border);
+    background: var(--bg-surface-2);
+    color: var(--text-primary);
+    border-color: var(--border-strong);
   }
 
   .badge-graded {
+    background: var(--accent);
+    color: #fff;
+    border-color: var(--accent);
+  }
+
+  .badge-under-review {
+    background: var(--bg-surface-2);
+    color: var(--accent);
+    border-color: var(--accent-border);
+  }
+
+  .badge-present {
     background: var(--accent-light);
     color: var(--accent);
     border-color: var(--accent-border);
   }
 
-  .badge-under-review {
-    background: var(--amber-light);
-    color: var(--amber);
-    border-color: var(--amber-border);
-  }
-
-  .badge-present {
-    background: var(--green-light);
-    color: var(--green);
-    border-color: var(--green-border);
-  }
-
   .badge-absent {
-    background: var(--red-light);
-    color: var(--red);
-    border-color: var(--red-border);
+    background: var(--bg-surface-2);
+    color: var(--text-secondary);
+    border-color: var(--border-strong);
   }
 
   .badge-leave {
-    background: var(--amber-light);
-    color: var(--amber);
-    border-color: var(--amber-border);
+    background: var(--bg-surface-2);
+    color: var(--text-primary);
+    border-color: var(--border);
   }
 
   .badge-late {
-    background: var(--purple-light);
-    color: var(--purple);
-    border-color: var(--purple-border);
+    background: var(--bg-surface-2);
+    color: var(--text-primary);
+    border-color: var(--border-strong);
   }
 
   /* ── Table ── */
@@ -163,18 +160,16 @@
   }
 
   .erp-table thead tr {
-    border-bottom: 2px solid var(--border);
-    background: var(--bg-surface-2);
+    border-bottom: 1px solid var(--border);
+    background: #ffffff; /* White header based on screenshot */
   }
 
   .erp-table thead th {
     text-align: left;
-    padding: 10px 12px;
-    font-size: 11px;
+    padding: 12px 14px;
+    font-size: 12px;
     font-weight: 600;
-    color: var(--accent);
-    text-transform: uppercase;
-    letter-spacing: 0.04em;
+    color: var(--accent); /* Indigo headers */
     white-space: nowrap;
   }
 
@@ -259,28 +254,26 @@
   .nav-item {
     display: flex;
     align-items: center;
-    gap: 10px;
-    padding: 9px 16px;
+    gap: 12px;
+    padding: 12px 20px;
     border-radius: 0;
-    color: var(--text-secondary);
+    color: var(--text-primary); /* Dark text for inactive items */
     font-size: 13px;
-    font-weight: 400;
+    font-weight: 500;
     text-decoration: none;
-    transition: background 0.12s, color 0.12s;
-    border-left: 3px solid transparent;
+    transition: background 0.1s, color 0.1s;
+    border-right: 3px solid transparent; /* Orange border goes on the right */
     cursor: pointer;
   }
 
   .nav-item:hover {
     background: var(--bg-hover);
-    color: var(--accent);
   }
 
   .nav-item.active {
-    background: var(--accent-light);
-    color: var(--accent);
-    border-left-color: var(--accent);
-    font-weight: 500;
+    color: var(--accent); /* Indigo text */
+    border-right-color: var(--orange); /* Orange line on the right */
+    background: transparent;
   }
 
   /* ── Stat card ── */

@@ -234,18 +234,21 @@ export default function StudentAssignments() {
                     <td style={{ color: "var(--text-secondary)", fontSize: 12, whiteSpace: "nowrap" }}>{a.startDate}</td>
                     <td style={{ color: "var(--text-secondary)", fontSize: 12, whiteSpace: "nowrap" }}>{a.dueDate}</td>
                     <td>
-                      {a.status === "NOT_PUBLISHED" && <span className="badge badge-not-published">Not Published</span>}
-                      {a.status === "GRADED"        && <span className="badge badge-graded">Graded</span>}
-                      {a.status === "MISSED"        && <span className="badge badge-missed">Missed</span>}
-                      {a.status === "SUBMITTED"     && <span className="badge badge-submitted">Submitted</span>}
-                    </td>
-                    <td>
-                      <div className="flex items-center gap-2">
+                      <div className="flex flex-col gap-1 items-start">
+                        {a.status === "NOT_PUBLISHED" && <span className="badge badge-not-published">Not Published</span>}
+                        {a.status === "GRADED"        && <span className="badge badge-graded">Graded</span>}
+                        {a.status === "MISSED"        && <span className="badge badge-missed">Missed</span>}
+                        {a.status === "SUBMITTED"     && <span className="badge badge-submitted">Submitted</span>}
+
                         {a.submission && (
                           <span className={`badge ${a.submission === "Submitted" ? "badge-submitted" : a.submission === "Missed" ? "badge-missed" : "badge-not-submitted"}`}>
                             {a.submission}
                           </span>
                         )}
+                      </div>
+                    </td>
+                    <td>
+                      <div className="flex items-center justify-center gap-2">
                         {a.marks && (
                           <span className="text-sm font-semibold" style={{ color: "var(--accent)" }}>{a.marks}</span>
                         )}
@@ -259,7 +262,7 @@ export default function StudentAssignments() {
                             onMouseEnter={(e) => (e.currentTarget.style.background = "var(--accent-light)")}
                             onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
                           >
-                            <Upload className="w-3.5 h-3.5" />
+                            <Upload className="w-4 h-4" />
                           </button>
                         )}
                       </div>
