@@ -1,0 +1,380 @@
+// Aurora ERP - Database Schema
+// PostgreSQL via Prisma ORM
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ─── Enums ──────────────────────────────────────────────────────────────────
+
+enum Role {
+  ADMIN
+  FACULTY
+  STUDENT
+}
+
+enum AttendanceStatus {
+  PRESENT
+  ABSENT
+  LEAVE
+  LATE
+}
+
+enum AssignmentCategory {
+  UPLOAD_BASED
+  MARKS_ONLY
+}
+
+enum SubmissionStatus {
+  NOT_SUBMITTED
+  SUBMITTED
+  MISSED
+  UNDER_REVIEW
+  GRADED
+}
+
+enum NoticeCategory {
+  ACADEMIC
+  EVENTS
+  WORKSHOPS
+  HACKATHONS
+  EXAMS
+  GENERAL
+}
+
+enum AuditAction {
+  ATTENDANCE_MARKED
+  ATTENDANCE_EDITED
+  MARKS_ASSIGNED
+  MARKS_UPDATED
+  ASSIGNMENT_CREATED
+  ASSIGNMENT_REOPENED
+  SUBMISSION_REVIEWED
+  USER_CREATED
+  USER_UPDATED
+  USER_DEACTIVATED
+  NOTICE_POSTED
+  FACULTY_ASSIGNED
+}
+
+// ─── Users & Auth ───────────────────────────────────────────────────────────
+
+model User {
+  id           String   @id @default(uuid())
+  email        String   @unique
+  passwordHash String   @map("password_hash")
+  role         Role
+  isActive     Boolean  @default(true) @map("is_active")
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  // Role-specific profiles (one of these will be populated)
+  studentProfile  StudentProfile?
+  facultyProfile  FacultyProfile?
+  adminProfile    AdminProfile?
+
+  // Relations
+  refreshTokens   RefreshToken[]
+  auditLogsActor  AuditLog[]     @relation("AuditActor")
+  auditLogsTarget AuditLog[]     @relation("AuditTarget")
+  noticesPosted   Notice[]
+
+  @@map("users")
+}
+
+model RefreshToken {
+  id        String   @id @default(uuid())
+  token     String   @unique
+  userId    String   @map("user_id")
+  expiresAt DateTime @map("expires_at")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("refresh_tokens")
+}
+
+// ─── Academic Hierarchy ──────────────────────────────────────────────────────
+
+model Department {
+  id        String   @id @default(uuid())
+  name      String   @unique
+  code      String   @unique
+  createdAt DateTime @default(now()) @map("created_at")
+
+  courses Course[]
+
+  @@map("departments")
+}
+
+model Course {
+  id           String @id @default(uuid())
+  name         String
+  code         String @unique
+  departmentId String @map("department_id")
+
+  department Department @relation(fields: [departmentId], references: [id])
+  years      Year[]
+
+  @@map("courses")
+}
+
+model Year {
+  id       String @id @default(uuid())
+  number   Int    // 1, 2, 3, 4
+  courseId String @map("course_id")
+
+  course   Course @relation(fields: [courseId], references: [id])
+  terms    Term[]
+
+  @@unique([courseId, number])
+  @@map("years")
+}
+
+model Term {
+  id     String @id @default(uuid())
+  number Int    // 1, 2, 3, 4
+  name   String // e.g., "Semester 1"
+  yearId String @map("year_id")
+
+  year     Year      @relation(fields: [yearId], references: [id])
+  sections Section[]
+  subjects Subject[]
+
+  @@unique([yearId, number])
+  @@map("terms")
+}
+
+model Section {
+  id   String @id @default(uuid())
+  name String // e.g., "A", "B"
+  termId String @map("term_id")
+
+  term              Term                @relation(fields: [termId], references: [id])
+  studentProfiles   StudentProfile[]
+  facultyAssignments FacultyAssignment[]
+  attendanceSessions AttendanceSession[]
+  assignments       Assignment[]
+
+  @@unique([termId, name])
+  @@map("sections")
+}
+
+model Subject {
+  id     String @id @default(uuid())
+  name   String
+  code   String
+  termId String @map("term_id")
+  credits Int   @default(3)
+
+  term               Term                @relation(fields: [termId], references: [id])
+  facultyAssignments FacultyAssignment[]
+  attendanceSessions AttendanceSession[]
+  assignments        Assignment[]
+  assignmentTemplates AssignmentTemplate[]
+
+  @@unique([termId, code])
+  @@map("subjects")
+}
+
+// ─── Profiles ───────────────────────────────────────────────────────────────
+
+model StudentProfile {
+  id               String @id @default(uuid())
+  userId           String @unique @map("user_id")
+  firstName        String @map("first_name")
+  lastName         String @map("last_name")
+  registrationNumber String @unique @map("registration_number")
+  sectionId        String @map("section_id")
+  mentorId         String? @map("mentor_id")
+  academicStatus   String @default("Active") @map("academic_status")
+
+  user    User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  section Section        @relation(fields: [sectionId], references: [id])
+  mentor  FacultyProfile? @relation("Mentees", fields: [mentorId], references: [id])
+
+  attendanceRecords  AttendanceRecord[]
+  submissions        AssignmentSubmission[]
+
+  @@map("student_profiles")
+}
+
+model FacultyProfile {
+  id        String @id @default(uuid())
+  userId    String @unique @map("user_id")
+  firstName String @map("first_name")
+  lastName  String @map("last_name")
+  staffId   String @unique @map("staff_id")
+  designation String @default("Assistant Professor")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  assignments        FacultyAssignment[]
+  mentees            StudentProfile[]    @relation("Mentees")
+  reviewedSubmissions AssignmentSubmission[] @relation("ReviewedBy")
+
+  @@map("faculty_profiles")
+}
+
+model AdminProfile {
+  id        String @id @default(uuid())
+  userId    String @unique @map("user_id")
+  firstName String @map("first_name")
+  lastName  String @map("last_name")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("admin_profiles")
+}
+
+// ─── Faculty Assignments ─────────────────────────────────────────────────────
+
+model FacultyAssignment {
+  id        String @id @default(uuid())
+  facultyId String @map("faculty_id")
+  sectionId String @map("section_id")
+  subjectId String @map("subject_id")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  faculty FacultyProfile @relation(fields: [facultyId], references: [id])
+  section Section        @relation(fields: [sectionId], references: [id])
+  subject Subject        @relation(fields: [subjectId], references: [id])
+
+  @@unique([facultyId, sectionId, subjectId])
+  @@map("faculty_assignments")
+}
+
+// ─── Attendance ──────────────────────────────────────────────────────────────
+
+model AttendanceSession {
+  id        String   @id @default(uuid())
+  sectionId String   @map("section_id")
+  subjectId String   @map("subject_id")
+  date      DateTime @db.Date
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  section Section @relation(fields: [sectionId], references: [id])
+  subject Subject @relation(fields: [subjectId], references: [id])
+  records AttendanceRecord[]
+
+  @@unique([sectionId, subjectId, date])
+  @@map("attendance_sessions")
+}
+
+model AttendanceRecord {
+  id        String           @id @default(uuid())
+  sessionId String           @map("session_id")
+  studentId String           @map("student_id")
+  status    AttendanceStatus @default(ABSENT)
+  createdAt DateTime         @default(now()) @map("created_at")
+  updatedAt DateTime         @updatedAt @map("updated_at")
+
+  session AttendanceSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  student StudentProfile    @relation(fields: [studentId], references: [id])
+
+  @@unique([sessionId, studentId])
+  @@map("attendance_records")
+}
+
+// ─── Assignments ─────────────────────────────────────────────────────────────
+
+model AssignmentTemplate {
+  id          String             @id @default(uuid())
+  name        String
+  category    AssignmentCategory
+  maxMarks    Decimal            @map("max_marks") @db.Decimal(6, 2)
+  subjectId   String?            @map("subject_id")
+  isGlobal    Boolean            @default(true) @map("is_global")
+  isMarkOnly  Boolean            @default(false) @map("is_mark_only")
+
+  subject     Subject?     @relation(fields: [subjectId], references: [id])
+  assignments Assignment[]
+
+  @@map("assignment_templates")
+}
+
+model Assignment {
+  id           String    @id @default(uuid())
+  title        String
+  instructions String?
+  templateId   String    @map("template_id")
+  sectionId    String    @map("section_id")
+  subjectId    String    @map("subject_id")
+  dueDate      DateTime  @map("due_date")
+  attachmentUrl String?  @map("attachment_url")
+  isPublished  Boolean   @default(false) @map("is_published")
+  createdAt    DateTime  @default(now()) @map("created_at")
+  updatedAt    DateTime  @updatedAt @map("updated_at")
+
+  template    AssignmentTemplate    @relation(fields: [templateId], references: [id])
+  section     Section               @relation(fields: [sectionId], references: [id])
+  subject     Subject               @relation(fields: [subjectId], references: [id])
+  submissions AssignmentSubmission[]
+
+  @@map("assignments")
+}
+
+model AssignmentSubmission {
+  id          String           @id @default(uuid())
+  assignmentId String          @map("assignment_id")
+  studentId   String           @map("student_id")
+  status      SubmissionStatus @default(NOT_SUBMITTED)
+  fileUrl     String?          @map("file_url")
+  submittedAt DateTime?        @map("submitted_at")
+  reviewedById String?         @map("reviewed_by_id")
+  reviewedAt  DateTime?        @map("reviewed_at")
+  marks       Decimal?         @db.Decimal(6, 2)
+  remarks     String?
+  isReopened  Boolean          @default(false) @map("is_reopened")
+  createdAt   DateTime         @default(now()) @map("created_at")
+  updatedAt   DateTime         @updatedAt @map("updated_at")
+
+  assignment   Assignment     @relation(fields: [assignmentId], references: [id])
+  student      StudentProfile @relation(fields: [studentId], references: [id])
+  reviewedBy   FacultyProfile? @relation("ReviewedBy", fields: [reviewedById], references: [id])
+
+  @@unique([assignmentId, studentId])
+  @@map("assignment_submissions")
+}
+
+// ─── Notices ──────────────────────────────────────────────────────────────────
+
+model Notice {
+  id           String         @id @default(uuid())
+  title        String
+  content      String
+  category     NoticeCategory @default(GENERAL)
+  attachmentUrl String?       @map("attachment_url")
+  isPinned     Boolean        @default(false) @map("is_pinned")
+  expiresAt    DateTime?      @map("expires_at")
+  postedById   String         @map("posted_by_id")
+  createdAt    DateTime       @default(now()) @map("created_at")
+  updatedAt    DateTime       @updatedAt @map("updated_at")
+
+  postedBy User @relation(fields: [postedById], references: [id])
+
+  @@map("notices")
+}
+
+// ─── Audit Log ────────────────────────────────────────────────────────────────
+
+model AuditLog {
+  id           String      @id @default(uuid())
+  actorId      String      @map("actor_id")
+  action       AuditAction
+  targetUserId String?     @map("target_user_id")
+  entityType   String      @map("entity_type")
+  entityId     String      @map("entity_id")
+  changes      Json?
+  createdAt    DateTime    @default(now()) @map("created_at")
+
+  actor      User  @relation("AuditActor", fields: [actorId], references: [id])
+  targetUser User? @relation("AuditTarget", fields: [targetUserId], references: [id])
+
+  @@map("audit_logs")
+}
