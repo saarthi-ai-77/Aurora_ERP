@@ -1,42 +1,34 @@
+import { create } from 'zustand';
+import { AuthUser, LoginResponseData } from '@shared/types/auth.types';
+
 export type Role = "ADMIN" | "FACULTY" | "STUDENT";
 
-export interface AuthUser {
-  id: string;
-  email: string;
-  role: Role;
-  name: string;
+interface AuthState {
+  user: AuthUser | null;
+  setUser: (user: AuthUser | null) => void;
+  clearAuth: () => void;
 }
 
-export interface LoginResponse {
-  accessToken: string;
-  refreshToken: string;
-  user: AuthUser;
-}
+export const useAuthStore = create<AuthState>((set) => ({
+  user: null,
+  setUser: (user) => set({ user }),
+  clearAuth: () => set({ user: null }),
+}));
 
+// Backward compatibility helpers, though components should migrate to useAuthStore
 export function getStoredUser(): AuthUser | null {
-  if (typeof window === "undefined") return null;
-  const raw = localStorage.getItem("user");
-  if (!raw) return null;
-  try {
-    return JSON.parse(raw) as AuthUser;
-  } catch {
-    return null;
-  }
+  return useAuthStore.getState().user;
 }
 
-export function setStoredAuth(data: LoginResponse): void {
-  localStorage.setItem("accessToken", data.accessToken);
-  localStorage.setItem("refreshToken", data.refreshToken);
-  localStorage.setItem("user", JSON.stringify(data.user));
+export function setStoredAuth(data: LoginResponseData): void {
+  useAuthStore.getState().setUser(data.user);
 }
 
 export function clearStoredAuth(): void {
-  localStorage.removeItem("accessToken");
-  localStorage.removeItem("refreshToken");
-  localStorage.removeItem("user");
+  useAuthStore.getState().clearAuth();
 }
 
-export function getDashboardPath(role: Role): string {
+export function getDashboardPath(role: Role | string): string {
   switch (role) {
     case "ADMIN":
       return "/admin/dashboard";

@@ -1,90 +1,151 @@
 "use client";
 
-import Topbar from "@/components/layout/topbar";
-import { Download, AlertCircle } from "lucide-react";
+import { useQuery } from "@tanstack/react-query";
+import { attendanceApi } from "@/lib/api";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Progress } from "@/components/ui/progress";
+import { Loader2, BookOpen, Clock, AlertTriangle, CheckCircle2 } from "lucide-react";
+import { cn } from "@/lib/utils";
 
-const ATTENDANCE = [
-  { id: "CS301", name: "Problem Solving With Python Programming-2", faculty: "Sai Rahul Mallidi", total: 42, present: 36, absent: 4, leave: 1, late: 1, percent: 88, status: "Safe" },
-  { id: "MT201", name: "Calculus and Differential Equations", faculty: "Dr. A. Sharma", total: 38, present: 24, absent: 14, leave: 0, late: 0, percent: 63, status: "Critical" },
-  { id: "CS302", name: "Data Structures & Algorithms", faculty: "Dr. K. Reddy", total: 40, present: 29, absent: 9, leave: 2, late: 0, percent: 72, status: "Warning" },
-  { id: "CS303", name: "Database Management Systems", faculty: "Prof. S. Gupta", total: 35, present: 33, absent: 2, leave: 0, late: 0, percent: 94, status: "Safe" },
-];
+export default function StudentAttendancePage() {
+  const { data: summary, isLoading: loadingSummary } = useQuery({
+    queryKey: ['student-attendance-summary'],
+    queryFn: () => attendanceApi.getMySummary(),
+  });
 
-export default function StudentAttendance() {
+  const { data: history, isLoading: loadingHistory } = useQuery({
+    queryKey: ['student-attendance-history'],
+    queryFn: () => attendanceApi.getMyHistory({ limit: 10 }),
+  });
+
+  if (loadingSummary || loadingHistory) return <Loader2 className="animate-spin mx-auto my-12" />;
+
+  const subjectStats = summary?.data || [];
+  const historyRecords = history?.data || [];
+
   return (
-    <>
-      <Topbar title="Attendance Overview" breadcrumb={["Attendance"]} />
+    <div className="container mx-auto py-8 space-y-8">
+      <div>
+        <h1 className="text-3xl font-extrabold tracking-tight text-gray-900">My Attendance</h1>
+        <p className="text-gray-500">Track your academic presence and subject-wise health.</p>
+      </div>
 
-      <div className="p-6 max-w-7xl mx-auto space-y-6 animate-in fade-in duration-300">
-        
-        <div className="flex items-center justify-between mb-4">
-          <h2 className="text-lg font-semibold" style={{ color: "var(--text-primary)" }}>Subject-wise Attendance</h2>
-          <button className="btn-secondary">
-            <Download className="w-4 h-4" /> Export Report
-          </button>
-        </div>
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        {subjectStats.map((item: any) => (
+          <SubjectAttendanceCard key={item.subject.id} item={item} />
+        ))}
+      </div>
 
-        <div className="card overflow-x-auto">
-          <table className="erp-table">
+      <div className="bg-white rounded-xl border shadow-sm p-6 space-y-4">
+        <h2 className="text-xl font-bold flex items-center gap-2">
+          <Clock className="w-5 h-5 text-indigo-600" />
+          Recent Attendance History
+        </h2>
+        <div className="overflow-x-auto">
+          <table className="w-full text-left">
             <thead>
-              <tr>
-                <th>Subject</th>
-                <th>Faculty</th>
-                <th className="text-center">Total Sessions</th>
-                <th className="text-center">Present</th>
-                <th className="text-center">Absent</th>
-                <th className="text-center">Leave</th>
-                <th className="text-center">Late</th>
-                <th className="text-center">Attendance %</th>
-                <th>Status</th>
+              <tr className="text-xs uppercase text-gray-500 border-b">
+                <th className="py-3 px-4">Date</th>
+                <th className="py-3 px-4">Subject</th>
+                <th className="py-3 px-4">Status</th>
+                <th className="py-3 px-4">Faculty</th>
               </tr>
             </thead>
             <tbody>
-              {ATTENDANCE.map((row) => (
-                <tr key={row.id}>
-                  <td>
-                    <p className="font-semibold" style={{ color: "var(--text-primary)" }}>{row.name}</p>
-                    <p className="text-xs" style={{ color: "var(--text-muted)" }}>{row.id}</p>
+              {historyRecords.map((record: any) => (
+                <tr key={record.id} className="border-b hover:bg-gray-50 transition-colors">
+                  <td className="py-3 px-4 text-sm font-medium">
+                    {new Date(record.session.date).toLocaleDateString()}
                   </td>
-                  <td style={{ color: "var(--text-secondary)" }}>{row.faculty}</td>
-                  <td className="text-center font-medium" style={{ color: "var(--text-primary)" }}>{row.total}</td>
-                  <td className="text-center" style={{ color: "var(--accent)" }}>{row.present}</td>
-                  <td className="text-center text-red-600">{row.absent}</td>
-                  <td className="text-center text-amber-600">{row.leave}</td>
-                  <td className="text-center text-gray-500">{row.late}</td>
-                  <td className="text-center">
-                    <span className="font-bold" style={{ color: row.percent >= 75 ? "var(--accent)" : row.percent >= 65 ? "var(--amber)" : "var(--red)" }}>
-                      {row.percent}%
-                    </span>
+                  <td className="py-3 px-4 text-sm">
+                    {record.session.subject.name}
                   </td>
-                  <td>
-                    {row.status === "Safe" && <span className="badge" style={{ background: "var(--accent-light)", color: "var(--accent)" }}>Safe</span>}
-                    {row.status === "Warning" && <span className="badge" style={{ background: "var(--amber-light)", color: "var(--amber)", border: "1px solid var(--amber-border)" }}>Warning</span>}
-                    {row.status === "Critical" && <span className="badge" style={{ background: "var(--red-light)", color: "var(--red)", border: "1px solid var(--red-border)" }}>Critical</span>}
+                  <td className="py-3 px-4">
+                    <StatusBadge status={record.status} />
+                  </td>
+                  <td className="py-3 px-4 text-sm text-gray-600">
+                    {record.session.faculty.firstName} {record.session.faculty.lastName}
                   </td>
                 </tr>
               ))}
             </tbody>
           </table>
         </div>
+      </div>
+    </div>
+  );
+}
 
-        {/* Legend */}
-        <div className="flex items-center gap-6 mt-4 px-2 text-sm">
-          <div className="flex items-center gap-2">
-            <div className="w-3 h-3 rounded-full" style={{ background: "var(--accent)" }}></div>
-            <span style={{ color: "var(--text-secondary)" }}>Safe (&gt;75%)</span>
+function SubjectAttendanceCard({ item }: { item: any }) {
+  const { standard, health } = item.health;
+
+  const healthColors: any = {
+    SAFE: "text-green-600",
+    WARNING: "text-amber-600",
+    CRITICAL: "text-red-600",
+  };
+
+  const progressColors: any = {
+    SAFE: "bg-green-600",
+    WARNING: "bg-amber-500",
+    CRITICAL: "bg-red-600",
+  };
+
+  return (
+    <Card className="border shadow-md overflow-hidden hover:shadow-lg transition-shadow">
+      <CardHeader className="bg-gray-50/50 pb-4">
+        <div className="flex justify-between items-start">
+          <Badge variant="outline" className="mb-2 font-mono text-[10px]">{item.subject.code}</Badge>
+          <HealthIcon health={health} />
+        </div>
+        <CardTitle className="text-lg line-clamp-1">{item.subject.name}</CardTitle>
+      </CardHeader>
+      <CardContent className="pt-6 space-y-4">
+        <div className="flex justify-between items-end mb-2">
+          <span className="text-sm font-medium text-gray-500">Attendance</span>
+          <span className={cn("text-2xl font-bold", healthColors[health])}>{standard}%</span>
+        </div>
+        <Progress value={standard} className="h-2" />
+        <div className="grid grid-cols-2 gap-2 text-xs font-medium pt-2">
+          <div className="flex justify-between text-gray-500">
+            <span>Present:</span>
+            <span className="text-gray-900">{item.stats.present}</span>
           </div>
-          <div className="flex items-center gap-2">
-            <div className="w-3 h-3 rounded-full" style={{ background: "var(--amber)" }}></div>
-            <span style={{ color: "var(--text-secondary)" }}>Warning (65-75%)</span>
+          <div className="flex justify-between text-gray-500">
+            <span>Absent:</span>
+            <span className="text-gray-900">{item.stats.absent}</span>
           </div>
-          <div className="flex items-center gap-2">
-            <div className="w-3 h-3 rounded-full" style={{ background: "var(--red)" }}></div>
-            <span style={{ color: "var(--text-secondary)" }}>Critical (&lt;65%)</span>
+          <div className="flex justify-between text-gray-500">
+            <span>Late:</span>
+            <span className="text-gray-900">{item.stats.late}</span>
+          </div>
+          <div className="flex justify-between text-gray-500">
+            <span>Total:</span>
+            <span className="text-gray-900">{item.stats.total}</span>
           </div>
         </div>
+      </CardContent>
+    </Card>
+  );
+}
 
-      </div>
-    </>
+function HealthIcon({ health }: { health: string }) {
+  if (health === 'SAFE') return <CheckCircle2 className="w-5 h-5 text-green-600" />;
+  if (health === 'WARNING') return <AlertTriangle className="w-5 h-5 text-amber-500" />;
+  return <AlertTriangle className="w-5 h-5 text-red-600" />;
+}
+
+function StatusBadge({ status }: { status: string }) {
+  const variants: any = {
+    PRESENT: "bg-green-100 text-green-700 border-green-200",
+    ABSENT: "bg-red-100 text-red-700 border-red-200",
+    LATE: "bg-amber-100 text-amber-700 border-amber-200",
+    LEAVE: "bg-blue-100 text-blue-700 border-blue-200",
+  };
+  return (
+    <Badge className={cn("font-medium", variants[status] || "bg-gray-100")} variant="outline">
+      {status}
+    </Badge>
   );
 }

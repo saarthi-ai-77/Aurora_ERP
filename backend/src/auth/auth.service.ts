@@ -19,40 +19,6 @@ export class AuthService {
   ) {}
 
   async login(dto: LoginDto) {
-    // --- MOCK LOGIN BYPASS ---
-    if (dto.password === 'password123') {
-      let role: any = null;
-      let profileName = '';
-      const email = dto.email.toLowerCase().trim();
-
-      if (email === 'admin@aurora.ac.in') { role = 'ADMIN'; profileName = 'System Administrator'; }
-      if (email === 'faculty@aurora.ac.in') { role = 'FACULTY'; profileName = 'Sai Rahul Mallidi'; }
-      if (email === 'student@aurora.ac.in') { role = 'STUDENT'; profileName = 'Nikshith Yadagiri'; }
-
-      if (role) {
-        const { accessToken, refreshToken } = await this.generateTokens('mock-id', dto.email, role);
-        try {
-          const hashedRefresh = await argon2.hash(refreshToken);
-          await this.prisma.refreshToken.create({
-            data: {
-              id: uuidv4(),
-              token: hashedRefresh,
-              userId: 'mock-id',
-              expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
-            },
-          });
-        } catch (e) {
-          // Ignore DB connection errors for mock logins so the UI can be tested
-          console.log("Mock login: DB not connected, skipping refresh token storage.");
-        }
-        return {
-          accessToken,
-          refreshToken,
-          user: { id: 'mock-id', email: dto.email, role, name: profileName },
-        };
-      }
-    }
-    // --- END MOCK LOGIN BYPASS ---
 
     try {
       const user = await this.prisma.user.findUnique({
@@ -64,11 +30,14 @@ export class AuthService {
         },
       });
 
+      console.log(`[AUTH] Login attempt for: ${dto.email}`);
       if (!user || !user.isActive) {
+        console.log(`[AUTH] User not found or inactive: ${dto.email}`);
         throw new UnauthorizedException('Invalid credentials');
       }
 
       const passwordValid = await argon2.verify(user.passwordHash, dto.password);
+      console.log(`[AUTH] Password valid: ${passwordValid}`);
       if (!passwordValid) {
         throw new UnauthorizedException('Invalid credentials');
       }
@@ -162,8 +131,56 @@ export class AuthService {
     return { message: 'Logged out successfully' };
   }
 
+  async getMe(userId: string) {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      include: {
+        studentProfile: true,
+        facultyProfile: true,
+        adminProfile: true,
+      },
+    });
+
+    if (!user || !user.isActive) {
+      throw new UnauthorizedException('User not found or inactive');
+    }
+
+    let profileName = '';
+    if (user.studentProfile) {
+      profileName = `${user.studentProfile.firstName} ${user.studentProfile.lastName}`;
+    } else if (user.facultyProfile) {
+      profileName = `${user.facultyProfile.firstName} ${user.facultyProfile.lastName}`;
+    } else if (user.adminProfile) {
+      profileName = `${user.adminProfile.firstName} ${user.adminProfile.lastName}`;
+    }
+
+    return {
+      id: user.id,
+      email: user.email,
+      role: user.role,
+      name: profileName,
+    };
+  }
+
   private async generateTokens(userId: string, email: string, role: string) {
-    const payload = { sub: userId, email, role };
+    // Fetch profile IDs to include in token for fast operational lookup
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      include: {
+        studentProfile: { select: { id: true } },
+        facultyProfile: { select: { id: true } },
+        adminProfile: { select: { id: true } },
+      }
+    });
+
+    const payload = { 
+      sub: userId, 
+      email, 
+      role,
+      studentProfileId: user?.studentProfile?.id,
+      facultyProfileId: user?.facultyProfile?.id,
+      adminProfileId: user?.adminProfile?.id,
+    };
 
     const [accessToken, refreshToken] = await Promise.all([
       this.jwt.signAsync(payload, {

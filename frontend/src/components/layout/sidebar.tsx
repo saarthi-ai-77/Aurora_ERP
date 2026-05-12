@@ -22,7 +22,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { clearStoredAuth, getStoredUser, Role } from "@/lib/auth";
-import api from "@/lib/api";
+import { authApi } from "@/lib/api";
 
 interface NavItem {
   label: string;
@@ -68,7 +68,7 @@ export default function Sidebar({ role, basePath }: SidebarProps) {
   const filteredItems = NAV_ITEMS.filter((item) => item.roles.includes(role));
 
   const handleLogout = async () => {
-    try { await api.post("/auth/logout"); } catch {}
+    try { await authApi.logout(); } catch {}
     clearStoredAuth();
     router.push("/login");
   };

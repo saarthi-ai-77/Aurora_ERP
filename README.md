@@ -1,4 +1,4 @@
-# Aurora ERP
+what is the # Aurora ERP
 
 A modern, role-based academic management system designed to be fast, professional, and scalable.
 

@@ -3,8 +3,8 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Eye, EyeOff, Loader2 } from "lucide-react";
 import Image from "next/image";
-import api from "@/lib/api";
-import { setStoredAuth, getDashboardPath, LoginResponse } from "@/lib/auth";
+import { authApi } from "@/lib/api";
+import { setStoredAuth, getDashboardPath } from "@/lib/auth";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -19,12 +19,14 @@ export default function LoginPage() {
     setError(null);
     setIsLoading(true);
     try {
-      const { data } = await api.post<LoginResponse>("/auth/login", {
+      const data = await authApi.login({
         email,
         password,
       });
-      setStoredAuth(data);
-      router.push(getDashboardPath(data.user.role));
+      if (data.success) {
+        setStoredAuth(data.data);
+        router.push(getDashboardPath(data.data.user.role));
+      }
     } catch (err: any) {
       if (err?.code === "ERR_NETWORK") {
         setError("Cannot connect to the server. Please ensure the backend is running.");

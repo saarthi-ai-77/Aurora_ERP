@@ -1,23 +1,27 @@
 import { Injectable, OnModuleInit, OnModuleDestroy } from '@nestjs/common';
-// eslint-disable-next-line @typescript-eslint/no-require-imports
-const { PrismaClient } = require('@prisma/client');
+import { PrismaClient } from '@prisma/client';
+import { PrismaPg } from '@prisma/adapter-pg';
+import { Pool } from 'pg';
+import { ConfigService } from '@nestjs/config';
 
 @Injectable()
-export class PrismaService {
-  public user: any = {
-    findUnique: async () => null,
-  };
-  public refreshToken: any = {
-    create: async () => ({}),
-    deleteMany: async () => ({}),
-    findMany: async () => [],
-    delete: async () => ({}),
-  };
-  
+export class PrismaService extends PrismaClient implements OnModuleInit, OnModuleDestroy {
+  private pool: Pool;
+
+  constructor(private config: ConfigService) {
+    const connectionString = config.get<string>('DATABASE_URL');
+    const pool = new Pool({ connectionString });
+    const adapter = new PrismaPg(pool);
+    super({ adapter });
+    this.pool = pool;
+  }
+
   async onModuleInit() {
-    console.log("Mock PrismaService initialized - database connection bypassed for testing.");
+    await this.$connect();
   }
 
   async onModuleDestroy() {
+    await this.$disconnect();
+    await this.pool.end();
   }
 }

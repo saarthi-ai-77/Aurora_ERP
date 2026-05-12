@@ -21,7 +21,7 @@ export default function AdminLayout({
   }, [router]);
 
   return (
-    <div className="flex h-screen overflow-hidden bg-[hsl(222,20%,7%)]">
+    <div className="flex h-screen overflow-hidden bg-[#f9fafb]">
       <Sidebar role="ADMIN" basePath="/admin" />
       <div className="flex-1 flex flex-col overflow-hidden">
         <main className="flex-1 overflow-y-auto">
