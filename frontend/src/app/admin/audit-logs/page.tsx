@@ -1,22 +1,35 @@
 "use client";
 
 import { useState } from "react";
-import { Search, Clock, Activity } from "lucide-react";
+import { useQuery } from "@tanstack/react-query";
+import { Search, Clock, Activity, ChevronLeft, ChevronRight } from "lucide-react";
+import { usersApi } from "@/lib/api/users.api";
 
-const MOCK_LOGS = [
-  { id: "1", action: "USER_LOGIN", actor: "admin@aurora.ac.in", target: "System", timestamp: "Oct 25, 2026 09:12 AM" },
-  { id: "2", action: "ATTENDANCE_MARKED", actor: "faculty@aurora.ac.in", target: "Section A (CS301)", timestamp: "Oct 25, 2026 09:05 AM" },
-  { id: "3", action: "ASSIGNMENT_CREATED", actor: "faculty@aurora.ac.in", target: "Database Normalization", timestamp: "Oct 24, 2026 04:30 PM" },
-  { id: "4", action: "USER_CREATED", actor: "admin@aurora.ac.in", target: "student2@aurora.ac.in", timestamp: "Oct 24, 2026 11:20 AM" },
-  { id: "5", action: "NOTICE_POSTED", actor: "admin@aurora.ac.in", target: "System Maintenance Downtime", timestamp: "Oct 22, 2026 02:15 PM" },
-];
+const PAGE_SIZE = 25;
+
+function actorName(actor: any): string {
+  const p =
+    actor?.facultyProfile ?? actor?.adminProfile ?? actor?.studentProfile;
+  if (p) return `${p.firstName} ${p.lastName}`;
+  return actor?.email ?? "—";
+}
 
 export default function AdminAuditLogsPage() {
   const [searchQuery, setSearchQuery] = useState("");
+  const [page, setPage] = useState(0);
 
-  const filtered = MOCK_LOGS.filter(
-    (l) => l.action.toLowerCase().includes(searchQuery.toLowerCase()) || 
-           l.actor.toLowerCase().includes(searchQuery.toLowerCase())
+  const { data, isLoading } = useQuery({
+    queryKey: ["audit-logs", page],
+    queryFn: () => usersApi.getAuditLogs(PAGE_SIZE, page * PAGE_SIZE),
+  });
+
+  const { logs = [], total = 0 } = data?.data ?? {};
+  const totalPages = Math.ceil(total / PAGE_SIZE);
+
+  const filtered = logs.filter(
+    (l: any) =>
+      l.action.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      actorName(l.actor).toLowerCase().includes(searchQuery.toLowerCase()),
   );
 
   return (
@@ -32,14 +45,17 @@ export default function AdminAuditLogsPage() {
         </div>
       </div>
 
-      <div className="card p-4 flex items-center justify-between">
+      <div className="card p-4">
         <div className="search-bar w-full md:w-96">
           <Search className="w-4 h-4" style={{ color: "var(--text-muted)" }} />
           <input
             type="text"
-            placeholder="Search by actor or action..."
+            placeholder="Search by actor or action…"
             value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
+            onChange={(e) => {
+              setSearchQuery(e.target.value);
+              setPage(0);
+            }}
           />
         </div>
       </div>
@@ -51,27 +67,44 @@ export default function AdminAuditLogsPage() {
               <th>Timestamp</th>
               <th>Actor</th>
               <th>Action Event</th>
-              <th>Target Entity</th>
+              <th>Entity</th>
             </tr>
           </thead>
           <tbody>
-            {filtered.length > 0 ? (
-              filtered.map((log) => (
+            {isLoading ? (
+              <tr>
+                <td colSpan={4} className="text-center py-8">
+                  <p style={{ color: "var(--text-muted)" }}>Loading…</p>
+                </td>
+              </tr>
+            ) : filtered.length > 0 ? (
+              filtered.map((log: any) => (
                 <tr key={log.id}>
                   <td>
-                    <div className="flex items-center gap-2 text-sm" style={{ color: "var(--text-secondary)" }}>
+                    <div
+                      className="flex items-center gap-2 text-sm"
+                      style={{ color: "var(--text-secondary)" }}
+                    >
                       <Clock className="w-3.5 h-3.5" />
-                      {log.timestamp}
+                      {new Date(log.createdAt).toLocaleString("en-IN", {
+                        day: "numeric",
+                        month: "short",
+                        year: "numeric",
+                        hour: "2-digit",
+                        minute: "2-digit",
+                      })}
                     </div>
                   </td>
-                  <td className="font-medium">{log.actor}</td>
+                  <td className="font-medium">{actorName(log.actor)}</td>
                   <td>
                     <span className="badge badge-under-review flex items-center gap-1 w-fit">
                       <Activity className="w-3 h-3" />
                       {log.action}
                     </span>
                   </td>
-                  <td style={{ color: "var(--text-secondary)" }}>{log.target}</td>
+                  <td style={{ color: "var(--text-secondary)" }}>
+                    {log.entityType} · {log.entityId.slice(0, 8)}…
+                  </td>
                 </tr>
               ))
             ) : (
@@ -84,6 +117,30 @@ export default function AdminAuditLogsPage() {
           </tbody>
         </table>
       </div>
+
+      {totalPages > 1 && (
+        <div className="flex items-center justify-between text-sm" style={{ color: "var(--text-secondary)" }}>
+          <span>
+            Page {page + 1} of {totalPages} · {total} total entries
+          </span>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setPage((p) => Math.max(0, p - 1))}
+              disabled={page === 0}
+              className="p-1.5 rounded hover:bg-gray-100 disabled:opacity-40"
+            >
+              <ChevronLeft className="w-4 h-4" />
+            </button>
+            <button
+              onClick={() => setPage((p) => Math.min(totalPages - 1, p + 1))}
+              disabled={page >= totalPages - 1}
+              className="p-1.5 rounded hover:bg-gray-100 disabled:opacity-40"
+            >
+              <ChevronRight className="w-4 h-4" />
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

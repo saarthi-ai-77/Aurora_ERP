@@ -1,31 +1,60 @@
 "use client";
 
+import { useQuery } from "@tanstack/react-query";
+import { analyticsApi } from "@/lib/api";
 import Topbar from "@/components/layout/topbar";
 import { getStoredUser } from "@/lib/auth";
-import { 
-  BarChart, 
-  AlertTriangle, 
-  Clock, 
+import {
+  BarChart,
+  AlertTriangle,
+  Clock,
   FileX,
   Bell,
   CalendarDays,
-  FileCheck,
   TrendingUp,
   UploadCloud,
-  ArrowRight
+  ArrowRight,
+  Loader2,
+  Megaphone,
+  Pin
 } from "lucide-react";
+import { noticeboardApi } from "@/lib/api/noticeboard.api";
 import Link from "next/link";
+import { cn } from "@/lib/utils";
 
 export default function StudentDashboard() {
   const user = getStoredUser();
+
+  const { data: analytics, isLoading } = useQuery({
+    queryKey: ['student-dashboard'],
+    queryFn: () => analyticsApi.getStudentDashboard(),
+  });
+
+  const { data: noticesData } = useQuery({
+    queryKey: ['noticeboard', 'student'],
+    queryFn: () => noticeboardApi.getMyNotices(),
+  });
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-[calc(100vh-var(--topbar-height))]">
+        <Loader2 className="w-8 h-8 animate-spin text-indigo-600" />
+      </div>
+    );
+  }
+
+  const data = analytics?.data;
+  const attendance = data?.attendance || { percentage: 0, totalSessions: 0, present: 0 };
+  const assignments = data?.assignments || { total: 0, graded: 0, pending: 0 };
+  const upcoming = data?.upcomingDeadlines || [];
+  const recentNotices: any[] = (noticesData?.data ?? []).slice(0, 4);
 
   return (
     <>
       <Topbar title="Dashboard" breadcrumb={["Dashboard"]} />
 
-      <div className="p-6 max-w-7xl mx-auto space-y-6">
+      <div className="p-6 max-w-7xl mx-auto space-y-6 animate-in fade-in duration-500">
         
-        {/* Welcome Banner */}
         <div className="flex items-center justify-between mb-2">
           <div>
             <h1 className="text-2xl font-bold" style={{ color: "var(--text-primary)" }}>
@@ -36,207 +65,178 @@ export default function StudentDashboard() {
             </p>
           </div>
           <div className="flex gap-2">
-            <Link href="/student/assignments" className="btn-primary">
+            <Link href="/student/assignments" className="btn-primary h-10 px-4 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg flex items-center gap-2 text-sm font-medium transition-all shadow-sm">
               <UploadCloud className="w-4 h-4" />
               Upload Assignment
             </Link>
           </div>
         </div>
 
-        {/* Top Metrics */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-          <div className="stat-card">
+          <div className="stat-card bg-white p-5 rounded-xl border shadow-sm">
             <div className="flex items-center gap-3 mb-2">
-              <div className="p-2 rounded" style={{ background: "var(--accent-light)", color: "var(--accent)" }}>
+              <div className="p-2 rounded-lg bg-indigo-50 text-indigo-600">
                 <BarChart className="w-5 h-5" />
               </div>
-              <p className="text-sm font-medium" style={{ color: "var(--text-secondary)" }}>Overall Attendance</p>
+              <p className="text-sm font-medium text-gray-500">Overall Attendance</p>
             </div>
-            <p className="text-2xl font-bold mb-1" style={{ color: "var(--text-primary)" }}>86.5%</p>
-            <div className="progress-track mt-3">
-              <div className="progress-fill" style={{ width: "86.5%", background: "var(--accent)" }} />
+            <p className="text-2xl font-bold text-gray-900">{attendance.percentage.toFixed(1)}%</p>
+            <div className="w-full bg-gray-100 h-1.5 rounded-full mt-3 overflow-hidden">
+              <div 
+                className={cn("h-full transition-all duration-1000", attendance.percentage >= 75 ? "bg-green-500" : "bg-red-500")} 
+                style={{ width: `${attendance.percentage}%` }} 
+              />
             </div>
           </div>
 
-          <div className="stat-card">
+          <div className="stat-card bg-white p-5 rounded-xl border shadow-sm">
             <div className="flex items-center gap-3 mb-2">
-              <div className="p-2 rounded" style={{ background: "var(--amber-light)", color: "var(--amber)" }}>
+              <div className="p-2 rounded-lg bg-amber-50 text-amber-600">
                 <AlertTriangle className="w-5 h-5" />
               </div>
-              <p className="text-sm font-medium" style={{ color: "var(--text-secondary)" }}>Attendance Alerts</p>
+              <p className="text-sm font-medium text-gray-500">Present Sessions</p>
             </div>
-            <p className="text-2xl font-bold mb-1" style={{ color: "var(--text-primary)" }}>2</p>
-            <p className="text-xs" style={{ color: "var(--text-muted)" }}>Subjects below 75%</p>
+            <p className="text-2xl font-bold text-gray-900">{attendance.present}</p>
+            <p className="text-xs text-gray-400">Out of {attendance.totalSessions} sessions</p>
           </div>
 
-          <div className="stat-card">
+          <div className="stat-card bg-white p-5 rounded-xl border shadow-sm">
             <div className="flex items-center gap-3 mb-2">
-              <div className="p-2 rounded" style={{ background: "var(--accent-light)", color: "var(--accent)" }}>
+              <div className="p-2 rounded-lg bg-blue-50 text-blue-600">
                 <Clock className="w-5 h-5" />
               </div>
-              <p className="text-sm font-medium" style={{ color: "var(--text-secondary)" }}>Upcoming Deadlines</p>
+              <p className="text-sm font-medium text-gray-500">Graded Work</p>
             </div>
-            <p className="text-2xl font-bold mb-1" style={{ color: "var(--text-primary)" }}>4</p>
-            <p className="text-xs" style={{ color: "var(--text-muted)" }}>Due within 7 days</p>
+            <p className="text-2xl font-bold text-gray-900">{assignments.graded}</p>
+            <p className="text-xs text-gray-400">{assignments.total} total assignments</p>
           </div>
 
-          <div className="stat-card">
+          <div className="stat-card bg-white p-5 rounded-xl border shadow-sm">
             <div className="flex items-center gap-3 mb-2">
-              <div className="p-2 rounded" style={{ background: "var(--red-light)", color: "var(--red)" }}>
+              <div className="p-2 rounded-lg bg-red-50 text-red-600">
                 <FileX className="w-5 h-5" />
               </div>
-              <p className="text-sm font-medium" style={{ color: "var(--text-secondary)" }}>Missed Assignments</p>
+              <p className="text-sm font-medium text-gray-500">Pending Submissions</p>
             </div>
-            <p className="text-2xl font-bold mb-1" style={{ color: "var(--text-primary)" }}>1</p>
-            <p className="text-xs" style={{ color: "var(--red)" }}>Requires immediate action</p>
+            <p className="text-2xl font-bold text-gray-900">{assignments.pending}</p>
+            <p className="text-xs text-red-500">Requires action</p>
           </div>
         </div>
 
-        {/* Dashboard Layout: Center feed & Right stats */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          
-          {/* Main Feed Column */}
           <div className="col-span-2 space-y-6">
-            
-            {/* Upcoming Deadlines Widget */}
-            <div className="card">
-              <div className="flex items-center justify-between p-4" style={{ borderBottom: "1px solid var(--border)" }}>
-                <h2 className="font-semibold flex items-center gap-2" style={{ color: "var(--text-primary)" }}>
-                  <CalendarDays className="w-4 h-4" style={{ color: "var(--accent)" }} />
+            <div className="bg-white rounded-xl border shadow-sm overflow-hidden">
+              <div className="flex items-center justify-between p-4 border-b">
+                <h2 className="font-bold flex items-center gap-2 text-gray-900">
+                  <CalendarDays className="w-4 h-4 text-indigo-600" />
                   Upcoming Deadlines
                 </h2>
-                <Link href="/student/assignments" className="text-xs hover:underline" style={{ color: "var(--accent)" }}>View all</Link>
+                <Link href="/student/assignments" className="text-xs text-indigo-600 hover:underline">View all</Link>
               </div>
-              <div className="p-0">
-                <table className="erp-table text-xs">
-                  <thead>
+              <div className="overflow-x-auto">
+                <table className="w-full text-left">
+                  <thead className="bg-gray-50 text-[10px] uppercase tracking-wider text-gray-400 font-bold">
                     <tr>
-                      <th>Assignment</th>
-                      <th>Course</th>
-                      <th>Due Date</th>
-                      <th>Action</th>
+                      <th className="px-6 py-3">Assignment</th>
+                      <th className="px-6 py-3">Due Date</th>
+                      <th className="px-6 py-3">Action</th>
                     </tr>
                   </thead>
-                  <tbody>
-                    <tr>
-                      <td className="font-medium">Lab Report 10</td>
-                      <td>Problem Solving With Python...</td>
-                      <td style={{ color: "var(--text-secondary)" }}>Feb 22, 2026</td>
-                      <td>
-                        <Link href="/student/assignments" className="flex items-center gap-1 hover:underline" style={{ color: "var(--accent)" }}>
-                          Upload <ArrowRight className="w-3 h-3" />
-                        </Link>
-                      </td>
-                    </tr>
-                    <tr>
-                      <td className="font-medium">Reflective Journal 10</td>
-                      <td>Problem Solving With Python...</td>
-                      <td style={{ color: "var(--text-secondary)" }}>Feb 22, 2026</td>
-                      <td>
-                        <Link href="/student/assignments" className="flex items-center gap-1 hover:underline" style={{ color: "var(--accent)" }}>
-                          Upload <ArrowRight className="w-3 h-3" />
-                        </Link>
-                      </td>
-                    </tr>
+                  <tbody className="divide-y text-sm">
+                    {upcoming.map((a: any) => (
+                      <tr key={a.id} className="hover:bg-gray-50 transition-colors">
+                        <td className="px-6 py-4">
+                          <p className="font-bold text-gray-900">{a.title}</p>
+                          <p className="text-xs text-gray-500">{a.subject?.name || 'Academic'}</p>
+                        </td>
+                        <td className="px-6 py-4 text-gray-500">
+                          {new Date(a.dueDate).toLocaleDateString()}
+                        </td>
+                        <td className="px-6 py-4">
+                          <Link href="/student/assignments" className="text-indigo-600 font-medium flex items-center gap-1 hover:gap-2 transition-all">
+                            Submit <ArrowRight className="w-3 h-3" />
+                          </Link>
+                        </td>
+                      </tr>
+                    ))}
+                    {upcoming.length === 0 && (
+                      <tr>
+                        <td colSpan={3} className="px-6 py-12 text-center text-gray-400 italic">No upcoming deadlines</td>
+                      </tr>
+                    )}
                   </tbody>
                 </table>
               </div>
             </div>
 
-            {/* Recent Notices Widget */}
-            <div className="card">
-              <div className="flex items-center justify-between p-4" style={{ borderBottom: "1px solid var(--border)" }}>
-                <h2 className="font-semibold flex items-center gap-2" style={{ color: "var(--text-primary)" }}>
-                  <Bell className="w-4 h-4" style={{ color: "var(--accent)" }} />
+            <div className="bg-white rounded-xl border shadow-sm p-4">
+              <div className="flex items-center justify-between mb-4 border-b pb-4">
+                <h2 className="font-bold flex items-center gap-2 text-gray-900">
+                  <Bell className="w-4 h-4 text-indigo-600" />
                   Recent Notices
                 </h2>
-                <Link href="/student/noticeboard" className="text-xs hover:underline" style={{ color: "var(--accent)" }}>Noticeboard</Link>
+                <Link href="/student/noticeboard" className="text-xs text-indigo-600 hover:underline">View All</Link>
               </div>
-              <div className="p-4 space-y-4">
-                <div className="flex gap-3 pb-4" style={{ borderBottom: "1px solid var(--border)" }}>
-                  <div className="w-2 h-2 mt-1.5 rounded-full" style={{ background: "var(--accent)" }} />
-                  <div>
-                    <p className="font-medium text-sm" style={{ color: "var(--text-primary)" }}>Mid-Term Examination Schedule Released</p>
-                    <p className="text-xs mt-1" style={{ color: "var(--text-secondary)" }}>Examinations Branch • 2 hours ago</p>
-                  </div>
+              {recentNotices.length > 0 ? (
+                <div className="divide-y">
+                  {recentNotices.map((n: any) => (
+                    <div key={n.id} className="flex items-start gap-3 py-3 px-1">
+                      <div className="mt-0.5 shrink-0 p-1.5 rounded-lg bg-indigo-50 text-indigo-500">
+                        <Megaphone className="w-4 h-4" />
+                      </div>
+                      <div className="min-w-0">
+                        <p className="text-sm font-medium text-gray-800 truncate flex items-center gap-1">
+                          {n.title}
+                          {n.isPinned && <Pin className="w-3 h-3 text-gray-400 shrink-0" />}
+                        </p>
+                        <p className="text-xs text-gray-400 mt-0.5 truncate">{n.content}</p>
+                      </div>
+                    </div>
+                  ))}
                 </div>
-                <div className="flex gap-3">
-                  <div className="w-2 h-2 mt-1.5 rounded-full bg-gray-300" />
-                  <div>
-                    <p className="font-medium text-sm" style={{ color: "var(--text-primary)" }}>Guest Lecture on AI Ethics</p>
-                    <p className="text-xs mt-1" style={{ color: "var(--text-secondary)" }}>Computer Science Dept • 1 day ago</p>
-                  </div>
+              ) : (
+                <div className="text-center py-12">
+                  <Bell className="w-12 h-12 text-gray-200 mx-auto mb-2" />
+                  <p className="text-gray-400 text-sm">No recent notices.</p>
                 </div>
-              </div>
+              )}
             </div>
-
           </div>
 
-          {/* Right Sidebar Column */}
           <div className="space-y-6">
-            
-            {/* Quick Links */}
-            <div className="card p-4">
-              <h2 className="font-semibold mb-4 text-sm uppercase tracking-wider" style={{ color: "var(--text-muted)" }}>Quick Links</h2>
-              <div className="grid grid-cols-2 gap-2">
-                <Link href="/student/attendance" className="p-3 rounded text-center border transition-colors" style={{ borderColor: "var(--border)", background: "var(--bg-surface)" }}>
-                  <BarChart className="w-5 h-5 mx-auto mb-1" style={{ color: "var(--accent)" }} />
-                  <span className="text-xs font-medium" style={{ color: "var(--text-secondary)" }}>Attendance</span>
+            <div className="bg-white rounded-xl border shadow-sm p-5">
+              <h2 className="font-bold mb-4 text-xs uppercase tracking-widest text-gray-400">Quick Links</h2>
+              <div className="grid grid-cols-2 gap-3">
+                <Link href="/student/attendance" className="p-4 rounded-xl border border-gray-100 bg-gray-50/50 hover:bg-white hover:border-indigo-200 transition-all text-center group">
+                  <BarChart className="w-6 h-6 mx-auto mb-2 text-indigo-400 group-hover:text-indigo-600" />
+                  <span className="text-xs font-bold text-gray-600">Attendance</span>
                 </Link>
-                <Link href="/student/calendar" className="p-3 rounded text-center border transition-colors" style={{ borderColor: "var(--border)", background: "var(--bg-surface)" }}>
-                  <CalendarDays className="w-5 h-5 mx-auto mb-1" style={{ color: "var(--accent)" }} />
-                  <span className="text-xs font-medium" style={{ color: "var(--text-secondary)" }}>Calendar</span>
-                </Link>
-                <Link href="/student/noticeboard" className="p-3 rounded text-center border transition-colors" style={{ borderColor: "var(--border)", background: "var(--bg-surface)" }}>
-                  <Bell className="w-5 h-5 mx-auto mb-1" style={{ color: "var(--accent)" }} />
-                  <span className="text-xs font-medium" style={{ color: "var(--text-secondary)" }}>Notices</span>
-                </Link>
-                <Link href="/student/catalog" className="p-3 rounded text-center border transition-colors" style={{ borderColor: "var(--border)", background: "var(--bg-surface)" }}>
-                  <FileCheck className="w-5 h-5 mx-auto mb-1" style={{ color: "var(--accent)" }} />
-                  <span className="text-xs font-medium" style={{ color: "var(--text-secondary)" }}>Catalog</span>
+                <Link href="/student/assignments" className="p-4 rounded-xl border border-gray-100 bg-gray-50/50 hover:bg-white hover:border-indigo-200 transition-all text-center group">
+                  <Clock className="w-6 h-6 mx-auto mb-2 text-indigo-400 group-hover:text-indigo-600" />
+                  <span className="text-xs font-bold text-gray-600">Deadlines</span>
                 </Link>
               </div>
             </div>
 
-            {/* Attendance Trend */}
-            <div className="card p-4">
-              <h2 className="font-semibold flex items-center gap-2 mb-4" style={{ color: "var(--text-primary)" }}>
-                <TrendingUp className="w-4 h-4" style={{ color: "var(--accent)" }} />
-                Attendance Trend
+            <div className="bg-white rounded-xl border shadow-sm p-5">
+              <h2 className="font-bold flex items-center gap-2 mb-4 text-gray-900">
+                <TrendingUp className="w-4 h-4 text-indigo-600" />
+                Performance Summary
               </h2>
-              <div className="h-32 flex items-end gap-2 px-2 pb-2">
-                {/* Mock bar chart */}
-                {[75, 82, 88, 85, 90, 86].map((h, i) => (
-                  <div key={i} className="flex-1 rounded-t relative group" style={{ height: `${h}%`, background: "var(--accent-border)" }}>
-                    <div className="absolute inset-x-0 bottom-0 rounded-t transition-all group-hover:opacity-80" style={{ height: `${h}%`, background: "var(--accent)" }} />
-                  </div>
-                ))}
-              </div>
-              <div className="flex justify-between px-2 text-[10px]" style={{ color: "var(--text-muted)" }}>
-                <span>Mon</span>
-                <span>Tue</span>
-                <span>Wed</span>
-                <span>Thu</span>
-                <span>Fri</span>
-                <span>Sat</span>
+              <div className="space-y-4">
+                <div className="flex justify-between items-center text-sm">
+                  <span className="text-gray-500">Graded Assignments</span>
+                  <span className="font-bold text-indigo-600">{assignments.graded} / {assignments.total}</span>
+                </div>
+                <div className="w-full bg-gray-100 h-2 rounded-full overflow-hidden">
+                  <div 
+                    className="bg-indigo-600 h-full transition-all duration-1000" 
+                    style={{ width: `${assignments.total > 0 ? (assignments.graded / assignments.total) * 100 : 0}%` }} 
+                  />
+                </div>
+                <p className="text-[10px] text-gray-400 italic">Historical GPA trends will be available in future updates.</p>
               </div>
             </div>
-
-            {/* Latest Marks */}
-            <div className="card p-4">
-              <h2 className="font-semibold mb-4" style={{ color: "var(--text-primary)" }}>Latest Marks</h2>
-              <div className="space-y-3">
-                <div className="flex justify-between items-center text-sm">
-                  <span style={{ color: "var(--text-secondary)" }}>Lab Quiz 2</span>
-                  <span className="font-semibold" style={{ color: "var(--accent)" }}>42 / 50</span>
-                </div>
-                <div className="flex justify-between items-center text-sm">
-                  <span style={{ color: "var(--text-secondary)" }}>Mid-Term I</span>
-                  <span className="font-semibold" style={{ color: "var(--accent)" }}>88 / 100</span>
-                </div>
-              </div>
-            </div>
-
           </div>
         </div>
 

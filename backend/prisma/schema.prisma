@@ -99,6 +99,18 @@ enum LifecycleStatus {
   ARCHIVED
 }
 
+enum NoticePriority {
+  LOW
+  MEDIUM
+  HIGH
+}
+
+enum NoticeStatus {
+  DRAFT
+  PUBLISHED
+  ARCHIVED
+}
+
 // ─── Users & Auth ───────────────────────────────────────────────────────────
 
 model User {
@@ -138,6 +150,7 @@ model RefreshToken {
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
+  @@index([userId])
   @@map("refresh_tokens")
 }
 
@@ -252,7 +265,7 @@ model StudentProfile {
   registrationNumber String  @unique @map("registration_number")
   sectionId          String  @map("section_id")
   mentorId           String? @map("mentor_id")
-  academicStatus     String  @default("Active") @map("academic_status")
+  academicStatus     AcademicStatus @default(ACTIVE) @map("academic_status")
 
   user    User            @relation(fields: [userId], references: [id], onDelete: Cascade)
   section Section         @relation(fields: [sectionId], references: [id])
@@ -409,6 +422,8 @@ model AttendanceAudit {
   enrollment StudentEnrollment @relation(fields: [studentEnrollmentId], references: [id])
   editedBy   User              @relation(fields: [editedById], references: [id])
 
+  @@index([sessionId])
+  @@index([studentEnrollmentId])
   @@map("attendance_audits")
 }
 
@@ -524,6 +539,8 @@ model AssignmentAudit {
   submission AssignmentSubmission? @relation(fields: [assignmentSubmissionId], references: [id])
   editedBy   User                  @relation(fields: [editedById], references: [id])
 
+  @@index([assignmentId])
+  @@index([assignmentSubmissionId])
   @@map("assignment_audits")
 }
 
@@ -534,9 +551,20 @@ model Notice {
   title         String
   content       String
   category      NoticeCategory @default(GENERAL)
+  priority      NoticePriority @default(MEDIUM)
+  status        NoticeStatus   @default(DRAFT)
+  
+  // Targeting
+  targetRoles       Role[]         @map("target_roles")
+  targetDepartments String[]       @map("target_departments")
+  targetSections    String[]       @map("target_sections")
+  
   attachmentUrl String?        @map("attachment_url")
   isPinned      Boolean        @default(false) @map("is_pinned")
   expiresAt     DateTime?      @map("expires_at")
+  publishedAt   DateTime?      @map("published_at")
+  archivedAt    DateTime?      @map("archived_at")
+  
   postedById    String         @map("posted_by_id")
   createdAt     DateTime       @default(now()) @map("created_at")
   updatedAt     DateTime       @updatedAt @map("updated_at")
@@ -544,6 +572,7 @@ model Notice {
   postedBy User @relation(fields: [postedById], references: [id])
 
   @@index([category])
+  @@index([status])
   @@index([createdAt])
   @@map("notices")
 }

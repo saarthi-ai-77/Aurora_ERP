@@ -9,18 +9,35 @@ import {
   UseInterceptors,
   UploadedFile,
   BadRequestException,
+  Req,
 } from '@nestjs/common';
 import { UsersService } from './users.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { Roles } from '../auth/decorators/roles.decorator';
-import { Role } from '@prisma/client';
+import { AuditInterceptor } from '../common/audit-log/audit.interceptor';
+import { Audit } from '../common/audit-log/audit.decorator';
+import { Role, AuditAction } from '@prisma/client';
 import { FileInterceptor } from '@nestjs/platform-express';
 
 @Controller('users')
 @UseGuards(JwtAuthGuard, RolesGuard)
 export class UsersController {
   constructor(private readonly usersService: UsersService) {}
+
+  @Get('me/profile')
+  getMyProfile(@Req() req: any) {
+    return this.usersService.getMyProfile(req.user.userId);
+  }
+
+  @Get('admin/audit-logs')
+  @Roles(Role.ADMIN)
+  getAuditLogs(
+    @Query('limit') limit?: number,
+    @Query('offset') offset?: number,
+  ) {
+    return this.usersService.getAuditLogs(limit, offset);
+  }
 
   @Get()
   @Roles(Role.ADMIN)
@@ -36,12 +53,16 @@ export class UsersController {
 
   @Patch(':id/toggle-status')
   @Roles(Role.ADMIN)
+  @UseInterceptors(AuditInterceptor)
+  @Audit(AuditAction.USER_UPDATED)
   toggleStatus(@Param('id') id: string) {
     return this.usersService.toggleStatus(id);
   }
 
   @Post('bulk-upload')
   @Roles(Role.ADMIN)
+  @UseInterceptors(AuditInterceptor)
+  @Audit(AuditAction.USER_CREATED)
   @UseInterceptors(FileInterceptor('file'))
   async bulkUpload(
     @UploadedFile() file: Express.Multer.File,

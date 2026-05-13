@@ -13,6 +13,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     async function initAuth() {
+      if (typeof window !== 'undefined' && window.location.pathname === '/login') {
+        setLoading(false);
+        return;
+      }
       try {
         const response = await authApi.getMe();
         if (response.success) {

@@ -1,4 +1,4 @@
-import { Injectable, BadRequestException } from '@nestjs/common';
+import { Injectable, BadRequestException, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { AcademicStatus } from '@prisma/client';
 
@@ -6,27 +6,18 @@ import { AcademicStatus } from '@prisma/client';
 export class EnrollmentService {
   constructor(private prisma: PrismaService) {}
 
-  /**
-   * Enrolls a student into a section for a specific term.
-   * Transactional: Updates StudentProfile and creates StudentEnrollment.
-   */
   async enrollStudent(studentId: string, sectionId: string, termId: string) {
     return this.prisma.$transaction(async (tx) => {
-      // 1. Verify section exists and belongs to the term
-      const section = await tx.section.findUnique({
-        where: { id: sectionId },
-      });
+      const section = await tx.section.findUnique({ where: { id: sectionId } });
       if (!section || section.termId !== termId) {
         throw new BadRequestException('Invalid section or term mapping');
       }
 
-      // 2. Deactivate current enrollments for this student
       await tx.studentEnrollment.updateMany({
         where: { studentId, isCurrent: true },
-        data: { isCurrent: false }
+        data: { isCurrent: false },
       });
 
-      // 3. Create new enrollment
       const enrollment = await tx.studentEnrollment.create({
         data: {
           studentId,
@@ -37,24 +28,68 @@ export class EnrollmentService {
         },
       });
 
-      // 4. Update current pointer on StudentProfile
       await tx.studentProfile.update({
         where: { id: studentId },
-        data: { sectionId }
+        data: { sectionId },
       });
 
       return enrollment;
     });
   }
 
+  async addStudentsToSection(sectionId: string, studentIds: string[], termId: string) {
+    const students = await this.prisma.studentProfile.findMany({
+      where: { id: { in: studentIds } },
+      select: { id: true, academicStatus: true, firstName: true, lastName: true },
+    });
+
+    if (students.length !== studentIds.length) {
+      throw new BadRequestException('One or more student IDs are invalid');
+    }
+
+    const inactive = students.filter((s) => s.academicStatus !== AcademicStatus.ACTIVE);
+    if (inactive.length > 0) {
+      throw new BadRequestException(
+        `${inactive.length} student(s) are inactive and cannot be enrolled`,
+      );
+    }
+
+    let enrolled = 0;
+    for (const studentId of studentIds) {
+      await this.enrollStudent(studentId, sectionId, termId);
+      enrolled++;
+    }
+
+    return { enrolled };
+  }
+
+  async removeStudentFromSection(sectionId: string, studentId: string) {
+    const enrollment = await this.prisma.studentEnrollment.findFirst({
+      where: { studentId, sectionId, isCurrent: true },
+    });
+
+    if (!enrollment) {
+      throw new NotFoundException('No active enrollment found for this student in this section');
+    }
+
+    return this.prisma.studentEnrollment.update({
+      where: { id: enrollment.id },
+      data: {
+        isCurrent: false,
+        status: AcademicStatus.WITHDRAWN,
+        withdrawnAt: new Date(),
+      },
+    });
+  }
+
   async withdrawStudent(studentId: string) {
     return this.prisma.studentEnrollment.updateMany({
       where: { studentId, isCurrent: true },
-      data: { 
-        isCurrent: false, 
+      data: {
+        isCurrent: false,
         status: AcademicStatus.WITHDRAWN,
-        withdrawnAt: new Date()
-      }
+        withdrawnAt: new Date(),
+      },
     });
   }
 }

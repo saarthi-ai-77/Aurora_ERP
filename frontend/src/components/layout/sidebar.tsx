@@ -19,6 +19,8 @@ import {
   Calendar,
   BookMarked,
   GraduationCap,
+  Library,
+  UserCheck,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { clearStoredAuth, getStoredUser, Role } from "@/lib/auth";
@@ -43,8 +45,10 @@ const NAV_ITEMS: NavItem[] = [
   { label: "Noticeboard",    href: "noticeboard",  icon: Bell,           roles: ["STUDENT", "FACULTY", "ADMIN"] },
   { label: "Analytics",      href: "analytics",    icon: BarChart3,      roles: ["FACULTY", "ADMIN"] },
   { label: "Users",          href: "users",        icon: Users,          roles: ["ADMIN"] },
-  { label: "Sections",       href: "sections",     icon: Building2,      roles: ["ADMIN"] },
-  { label: "Audit Logs",     href: "audit-logs",   icon: FileText,       roles: ["ADMIN"] },
+  { label: "Sections",            href: "sections",            icon: Building2,  roles: ["ADMIN"] },
+  { label: "Subjects",            href: "subjects",            icon: Library,    roles: ["ADMIN"] },
+  { label: "Faculty Assignments", href: "faculty-assignments", icon: UserCheck,  roles: ["ADMIN"] },
+  { label: "Audit Logs",          href: "audit-logs",          icon: FileText,   roles: ["ADMIN"] },
   { label: "Settings",       href: "settings",     icon: Settings,       roles: ["ADMIN"] },
 ];
 

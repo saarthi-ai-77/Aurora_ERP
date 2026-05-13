@@ -8,6 +8,71 @@ import * as XLSX from 'xlsx';
 export class UsersService {
   constructor(private prisma: PrismaService) {}
 
+  async getMyProfile(userId: string) {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: {
+        id: true,
+        email: true,
+        role: true,
+        isActive: true,
+        createdAt: true,
+        studentProfile: {
+          include: {
+            section: {
+              include: {
+                term: {
+                  include: {
+                    year: {
+                      include: { course: { include: { department: true } } },
+                    },
+                  },
+                },
+              },
+            },
+          },
+        },
+        facultyProfile: {
+          include: {
+            assignments: {
+              include: {
+                subject: true,
+                section: true,
+              },
+            },
+          },
+        },
+        adminProfile: true,
+      },
+    });
+    if (!user) throw new NotFoundException('User not found');
+    return user;
+  }
+
+  async getAuditLogs(limit = 50, offset = 0) {
+    const [logs, total] = await Promise.all([
+      this.prisma.auditLog.findMany({
+        take: Number(limit),
+        skip: Number(offset),
+        orderBy: { createdAt: 'desc' },
+        include: {
+          actor: {
+            select: {
+              email: true,
+              role: true,
+              facultyProfile: { select: { firstName: true, lastName: true } },
+              adminProfile: { select: { firstName: true, lastName: true } },
+              studentProfile: { select: { firstName: true, lastName: true } },
+            },
+          },
+        },
+      }),
+      this.prisma.auditLog.count(),
+    ]);
+
+    return { logs, total, limit: Number(limit), offset: Number(offset) };
+  }
+
   async findAll(role?: Role) {
     return this.prisma.user.findMany({
       where: role ? { role } : {},

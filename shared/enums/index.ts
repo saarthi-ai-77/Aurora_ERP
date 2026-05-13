@@ -32,3 +32,14 @@ export enum NoticeCategory {
   EXAMS = 'EXAMS',
   GENERAL = 'GENERAL',
 }
+export enum NoticePriority {
+  LOW = 'LOW',
+  MEDIUM = 'MEDIUM',
+  HIGH = 'HIGH',
+}
+
+export enum NoticeStatus {
+  DRAFT = 'DRAFT',
+  PUBLISHED = 'PUBLISHED',
+  ARCHIVED = 'ARCHIVED',
+}

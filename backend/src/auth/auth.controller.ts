@@ -8,8 +8,10 @@ import {
   Get,
   HttpCode,
   HttpStatus,
+  UnauthorizedException,
 } from '@nestjs/common';
 import { Response, Request } from 'express';
+import { Throttle } from '@nestjs/throttler';
 import { AuthService } from './auth.service';
 import { LoginDto } from './dto/login.dto';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
@@ -26,6 +28,7 @@ export class AuthController {
   constructor(private authService: AuthService) {}
 
   @Post('login')
+  @Throttle({ default: { limit: 10, ttl: 60000 } })
   @HttpCode(HttpStatus.OK)
   async login(@Body() dto: LoginDto, @Res({ passthrough: true }) res: any) {
     const { accessToken, refreshToken, user } = await this.authService.login(dto);
@@ -41,7 +44,7 @@ export class AuthController {
   async refresh(@Req() req: any, @Res({ passthrough: true }) res: any) {
     const refreshToken = req.cookies['refreshToken'];
     if (!refreshToken) {
-      return res.status(HttpStatus.UNAUTHORIZED).json({ message: 'No refresh token found' });
+      throw new UnauthorizedException('No refresh token found');
     }
 
     const tokens = await this.authService.refreshTokens(refreshToken);

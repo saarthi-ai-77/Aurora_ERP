@@ -1,5 +1,5 @@
 import "dotenv/config";
-import { PrismaClient, Role, LifecycleStatus, AcademicStatus } from '@prisma/client';
+import { PrismaClient, Role, LifecycleStatus, AcademicStatus, AssignmentCategory } from '@prisma/client';
 import { PrismaPg } from '@prisma/adapter-pg';
 import { Pool } from 'pg';
 import { faker } from '@faker-js/faker';
@@ -189,7 +189,48 @@ async function main() {
     }
   }
 
-  // 6. Admin
+  // 6. Assignment Templates (E4 — seeded globally, isGlobal = true)
+  console.log('Creating Assignment Templates...');
+  const uploadBasedTemplates = [
+    'Reflective Journal',
+    'Lab Journal',
+    'Assignment',
+    'Group Assignment',
+    'Project Report',
+    'Case Study',
+  ];
+  const marksOnlyTemplates = [
+    'Student Lecture',
+    'Presentation',
+    'Quiz',
+    'Lab Quiz',
+  ];
+
+  for (const name of uploadBasedTemplates) {
+    await prisma.assignmentTemplate.create({
+      data: {
+        name,
+        category: AssignmentCategory.UPLOAD_BASED,
+        maxMarks: 100,
+        isGlobal: true,
+        isMarkOnly: false,
+      },
+    });
+  }
+
+  for (const name of marksOnlyTemplates) {
+    await prisma.assignmentTemplate.create({
+      data: {
+        name,
+        category: AssignmentCategory.MARKS_ONLY,
+        maxMarks: 100,
+        isGlobal: true,
+        isMarkOnly: true,
+      },
+    });
+  }
+
+  // 7. Admin
   await prisma.user.create({
     data: {
       email: 'admin@aurora.ac.in',

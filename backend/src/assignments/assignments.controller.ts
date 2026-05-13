@@ -14,14 +14,18 @@ import {
 import { FileInterceptor } from '@nestjs/platform-express';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
-import { AcademicAccessGuard } from '../common/guards/academic-access.guard';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { GetUser } from '../auth/decorators/get-user.decorator';
 import { AssignmentsService } from './assignments.service';
 import { AssignmentsQueryService } from './assignments-query.service';
 import { AssignmentsAnalyticsService } from './assignments-analytics.service';
-import { Role } from '@prisma/client';
-import { ApiSuccessResponse } from '@shared/contracts/api.contracts';
+import { AuditInterceptor } from '../common/audit-log/audit.interceptor';
+import { Audit } from '../common/audit-log/audit.decorator';
+import { Role, AuditAction } from '@prisma/client';
+import {
+  CreateAssignmentDto,
+  GradeSubmissionDto,
+} from './dto/assignments.dto';
 
 @Controller('assignments')
 @UseGuards(JwtAuthGuard, RolesGuard)
@@ -36,106 +40,94 @@ export class AssignmentsController {
 
   @Post()
   @Roles(Role.FACULTY)
-  async createAssignment(
+  @UseInterceptors(AuditInterceptor)
+  @Audit(AuditAction.ASSIGNMENT_CREATED)
+  createAssignment(
     @GetUser('facultyProfileId') facultyId: string,
-    @Body() data: any,
-  ): Promise<ApiSuccessResponse<any>> {
-    const assignment = await this.assignmentsService.createAssignment(facultyId, data);
-    return { success: true, data: assignment, message: 'Assignment created as draft' };
+    @Body() dto: CreateAssignmentDto,
+  ) {
+    return this.assignmentsService.createAssignment(facultyId, dto);
   }
 
   @Patch(':id/publish')
   @Roles(Role.FACULTY)
-  async publishAssignment(
-    @Param('id', ParseUUIDPipe) id: string,
-  ): Promise<ApiSuccessResponse<any>> {
-    const assignment = await this.assignmentsService.publishAssignment(id);
-    return { success: true, data: assignment, message: 'Assignment published' };
+  publishAssignment(@Param('id', ParseUUIDPipe) id: string) {
+    return this.assignmentsService.publishAssignment(id);
   }
 
   @Get('faculty/me')
   @Roles(Role.FACULTY)
-  async getMyAssignments(
+  getFacultyAssignments(
     @GetUser('facultyProfileId') facultyId: string,
     @Query('limit') limit?: number,
     @Query('offset') offset?: number,
-  ): Promise<ApiSuccessResponse<any>> {
-    const assignments = await this.queryService.getFacultyAssignments(facultyId, { limit, offset });
-    return { success: true, data: assignments };
+  ) {
+    return this.queryService.getFacultyAssignments(facultyId, { limit, offset });
   }
 
   @Get(':id/submissions')
   @Roles(Role.FACULTY)
-  async getSubmissions(
+  getSubmissions(
     @Param('id', ParseUUIDPipe) id: string,
     @Query('limit') limit?: number,
     @Query('offset') offset?: number,
-  ): Promise<ApiSuccessResponse<any>> {
-    const submissions = await this.queryService.getAssignmentSubmissions(id, { limit, offset });
-    return { success: true, data: submissions };
+  ) {
+    return this.queryService.getAssignmentSubmissions(id, { limit, offset });
   }
 
   @Patch('submissions/:id/grade')
   @Roles(Role.FACULTY)
-  async gradeSubmission(
+  @UseInterceptors(AuditInterceptor)
+  @Audit(AuditAction.MARKS_ASSIGNED)
+  gradeSubmission(
     @Param('id', ParseUUIDPipe) id: string,
     @GetUser('facultyProfileId') facultyId: string,
-    @Body() data: { marks: number; feedback?: string },
-  ): Promise<ApiSuccessResponse<any>> {
-    const graded = await this.assignmentsService.gradeSubmission(id, facultyId, data);
-    return { success: true, data: graded, message: 'Submission graded' };
+    @Body() dto: GradeSubmissionDto,
+  ) {
+    return this.assignmentsService.gradeSubmission(id, facultyId, dto);
   }
 
   @Post('submissions/:id/reopen')
   @Roles(Role.FACULTY)
-  async reopenSubmission(
+  @UseInterceptors(AuditInterceptor)
+  @Audit(AuditAction.ASSIGNMENT_REOPENED)
+  reopenSubmission(
     @Param('id', ParseUUIDPipe) id: string,
     @GetUser('facultyProfileId') facultyId: string,
     @Body('reason') reason?: string,
-  ): Promise<ApiSuccessResponse<any>> {
-    const reopened = await this.assignmentsService.reopenSubmission(id, facultyId, reason);
-    return { success: true, data: reopened, message: 'Submission reopened for student' };
+  ) {
+    return this.assignmentsService.reopenSubmission(id, facultyId, reason);
   }
 
   // ─── Student Endpoints ──────────────────────────────────────────────────
 
   @Get('student/me')
   @Roles(Role.STUDENT)
-  async getStudentAssignments(
-    @GetUser('userId') userId: string,
-  ): Promise<ApiSuccessResponse<any>> {
-    const assignments = await this.queryService.getStudentAssignments(userId);
-    return { success: true, data: assignments };
+  getStudentAssignments(@GetUser('userId') userId: string) {
+    return this.queryService.getStudentAssignments(userId);
   }
 
   @Post(':id/submit')
   @Roles(Role.STUDENT)
   @UseInterceptors(FileInterceptor('file'))
-  async submitAssignment(
+  submitAssignment(
     @Param('id', ParseUUIDPipe) id: string,
     @GetUser('userId') userId: string,
     @UploadedFile() file: Express.Multer.File,
-  ): Promise<ApiSuccessResponse<any>> {
-    const submission = await this.assignmentsService.submitAssignment(id, userId, file);
-    return { success: true, data: submission, message: 'Assignment submitted successfully' };
+  ) {
+    return this.assignmentsService.submitAssignment(id, userId, file);
   }
 
   // ─── Shared Endpoints ───────────────────────────────────────────────────
 
   @Get('submissions/:id/details')
-  async getSubmissionDetails(
-    @Param('id', ParseUUIDPipe) id: string,
-  ): Promise<ApiSuccessResponse<any>> {
-    const details = await this.queryService.getSubmissionDetails(id);
-    return { success: true, data: details };
+  getSubmissionDetails(@Param('id', ParseUUIDPipe) id: string) {
+    return this.queryService.getSubmissionDetails(id);
   }
 
   @Get(':id/stats')
   @Roles(Role.FACULTY, Role.ADMIN)
-  async getStats(
-    @Param('id', ParseUUIDPipe) id: string,
-  ): Promise<ApiSuccessResponse<any>> {
-    const stats = await this.analyticsService.getAssignmentStats(id);
-    return { success: true, data: stats };
+  getStats(@Param('id', ParseUUIDPipe) id: string) {
+    return this.analyticsService.getAssignmentStats(id);
   }
 }

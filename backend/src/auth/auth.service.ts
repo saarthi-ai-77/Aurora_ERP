@@ -85,13 +85,26 @@ export class AuthService {
   }
 
   async refreshTokens(refreshToken: string) {
-    const allTokens = await this.prisma.refreshToken.findMany({
-      where: { expiresAt: { gt: new Date() } },
+    // Verify the signed JWT first to extract userId without scanning the table
+    let payload: { sub: string };
+    try {
+      payload = await this.jwt.verifyAsync(refreshToken, {
+        secret: this.config.get('JWT_REFRESH_SECRET'),
+      });
+    } catch {
+      throw new UnauthorizedException('Invalid or expired refresh token');
+    }
+
+    const userId = payload.sub;
+
+    // Fetch only this user's active tokens (typically 1–3 rows)
+    const userTokens = await this.prisma.refreshToken.findMany({
+      where: { userId, expiresAt: { gt: new Date() } },
       include: { user: true },
     });
 
     let validToken = null;
-    for (const t of allTokens) {
+    for (const t of userTokens) {
       const match = await argon2.verify(t.token, refreshToken);
       if (match) {
         validToken = t;

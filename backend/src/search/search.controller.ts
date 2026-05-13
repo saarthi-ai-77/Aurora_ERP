@@ -1,0 +1,14 @@
+import { Controller, Get, Query, UseGuards } from '@nestjs/common';
+import { SearchService } from './search.service';
+import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+
+@Controller('search')
+@UseGuards(JwtAuthGuard)
+export class SearchController {
+  constructor(private searchService: SearchService) {}
+
+  @Get('global')
+  globalSearch(@Query('q') query: string) {
+    return this.searchService.globalSearch(query);
+  }
+}

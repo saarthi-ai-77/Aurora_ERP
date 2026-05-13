@@ -6,16 +6,13 @@ import { AttendanceStatus } from '@prisma/client';
 export class AttendanceQueryService {
   constructor(private prisma: PrismaService) {}
 
-  /**
-   * Fetches sessions for a faculty member.
-   */
   async getFacultySessions(facultyId: string, limit = 20, offset = 0) {
     return this.prisma.attendanceSession.findMany({
       where: { facultyId },
       include: {
         section: true,
         subject: true,
-        _count: { select: { records: true } }
+        _count: { select: { records: true } },
       },
       orderBy: { date: 'desc' },
       take: limit,
@@ -23,9 +20,6 @@ export class AttendanceQueryService {
     });
   }
 
-  /**
-   * Fetches full session details including records and summary stats.
-   */
   async getSessionDetails(id: string) {
     const session = await this.prisma.attendanceSession.findUnique({
       where: { id },
@@ -34,40 +28,31 @@ export class AttendanceQueryService {
         subject: true,
         records: {
           include: {
-            enrollment: {
-              include: { student: true }
-            }
+            enrollment: { include: { student: true } },
           },
-          orderBy: { enrollment: { student: { registrationNumber: 'asc' } } }
-        }
-      }
+          orderBy: { enrollment: { student: { registrationNumber: 'asc' } } },
+        },
+      },
     });
 
     if (!session) throw new NotFoundException('Session not found');
 
-    // Aggregate stats for this session
     const stats = {
-      present: session.records.filter(r => r.status === AttendanceStatus.PRESENT).length,
-      absent: session.records.filter(r => r.status === AttendanceStatus.ABSENT).length,
-      leave: session.records.filter(r => r.status === AttendanceStatus.LEAVE).length,
-      late: session.records.filter(r => r.status === AttendanceStatus.LATE).length,
+      present: session.records.filter((r) => r.status === AttendanceStatus.PRESENT).length,
+      absent: session.records.filter((r) => r.status === AttendanceStatus.ABSENT).length,
+      leave: session.records.filter((r) => r.status === AttendanceStatus.LEAVE).length,
+      late: session.records.filter((r) => r.status === AttendanceStatus.LATE).length,
       total: session.records.length,
     };
 
     return { ...session, stats };
   }
 
-  /**
-   * Fetches attendance history for a specific student enrollment.
-   * This ensures historical data is term-specific.
-   */
   async getStudentHistory(enrollmentId: string, limit = 50, offset = 0) {
     return this.prisma.attendanceRecord.findMany({
       where: { studentEnrollmentId: enrollmentId },
       include: {
-        session: {
-          include: { subject: true, faculty: true }
-        }
+        session: { include: { subject: true, faculty: true } },
       },
       orderBy: { session: { date: 'desc' } },
       take: limit,
@@ -75,41 +60,40 @@ export class AttendanceQueryService {
     });
   }
 
-  /**
-   * Fetches subject-wise summaries for an enrollment.
-   */
   async getStudentSubjectSummaries(enrollmentId: string) {
-    // 1. Get all subjects for this enrollment's term
     const enrollment = await this.prisma.studentEnrollment.findUnique({
       where: { id: enrollmentId },
-      include: { term: { include: { subjects: true } } }
+      include: { term: { include: { subjects: { where: { isArchived: false } } } } },
     });
 
     if (!enrollment) throw new NotFoundException('Enrollment not found');
 
-    const subjects = enrollment.term.subjects;
+    // Single query for all records, then aggregate in JS (was N+1 per subject)
+    const allRecords = await this.prisma.attendanceRecord.findMany({
+      where: { studentEnrollmentId: enrollmentId },
+      include: { session: { select: { subjectId: true } } },
+    });
 
-    // 2. Aggregate records per subject
-    const summaries = await Promise.all(subjects.map(async (subject) => {
-      const records = await this.prisma.attendanceRecord.findMany({
-        where: {
-          studentEnrollmentId: enrollmentId,
-          session: { subjectId: subject.id }
-        }
-      });
+    const recordsBySubject = new Map<string, typeof allRecords>();
+    for (const record of allRecords) {
+      const sid = record.session.subjectId;
+      const existing = recordsBySubject.get(sid) ?? [];
+      existing.push(record);
+      recordsBySubject.set(sid, existing);
+    }
 
-      const present = records.filter(r => r.status === AttendanceStatus.PRESENT).length;
-      const absent = records.filter(r => r.status === AttendanceStatus.ABSENT).length;
-      const leave = records.filter(r => r.status === AttendanceStatus.LEAVE).length;
-      const late = records.filter(r => r.status === AttendanceStatus.LATE).length;
-      const total = records.length;
-
+    return enrollment.term.subjects.map((subject) => {
+      const records = recordsBySubject.get(subject.id) ?? [];
       return {
         subject,
-        stats: { present, absent, leave, late, total }
+        stats: {
+          present: records.filter((r) => r.status === AttendanceStatus.PRESENT).length,
+          absent: records.filter((r) => r.status === AttendanceStatus.ABSENT).length,
+          leave: records.filter((r) => r.status === AttendanceStatus.LEAVE).length,
+          late: records.filter((r) => r.status === AttendanceStatus.LATE).length,
+          total: records.length,
+        },
       };
-    }));
-
-    return summaries;
+    });
   }
 }

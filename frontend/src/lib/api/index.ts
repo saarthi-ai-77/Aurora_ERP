@@ -4,3 +4,6 @@ export { usersApi } from "./users.api";
 export { academicApi } from "./academic.api";
 export { attendanceApi } from "./attendance.api";
 export { assignmentsApi } from "./assignments.api";
+export { analyticsApi } from "./analytics.api";
+export { noticeboardApi } from "./noticeboard.api";
+export { searchApi } from "./search.api";

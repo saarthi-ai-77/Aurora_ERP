@@ -1,6 +1,7 @@
 "use client";
-import { Search, Bell, HelpCircle, Globe, Grid3X3 } from "lucide-react";
+import { Bell, HelpCircle, Globe, Grid3X3 } from "lucide-react";
 import { useState } from "react";
+import GlobalSearch from "./global-search";
 
 interface TopbarProps {
   title: string;
@@ -55,19 +56,7 @@ export default function Topbar({ title, breadcrumb, searchPlaceholder, onSearch 
 
       {/* Right: action buttons */}
       <div className="flex items-center gap-1">
-        {/* Search */}
-        {searchPlaceholder && (
-          <div className="search-bar mr-2">
-            <Search className="w-3.5 h-3.5 flex-shrink-0" style={{ color: "var(--text-muted)" }} />
-            <input
-              id="topbar-search"
-              type="search"
-              value={query}
-              onChange={(e) => handleSearch(e.target.value)}
-              placeholder={searchPlaceholder}
-            />
-          </div>
-        )}
+        <GlobalSearch />
 
         {/* Icon buttons matching the reference */}
         {[

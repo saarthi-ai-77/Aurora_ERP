@@ -28,7 +28,7 @@ api.interceptors.response.use(
         return api(original);
       } catch {
         // Refresh failed, user needs to re-login
-        if (typeof window !== 'undefined') {
+        if (typeof window !== 'undefined' && window.location.pathname !== '/login') {
           window.location.href = "/login";
         }
         return Promise.reject(error);
