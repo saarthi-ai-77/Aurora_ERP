@@ -86,11 +86,22 @@ export class AssignmentsService {
     const context = await this.academicContext.resolveStudentContext(userId);
     const assignment = await this.prisma.assignment.findUnique({
       where: { id: assignmentId },
+      include: { template: { select: { isMarkOnly: true, category: true } } },
     });
 
     if (!assignment) throw new NotFoundException('Assignment not found');
     if (assignment.status !== AssignmentStatus.PUBLISHED) {
       throw new BadRequestException('This assignment is not open for submissions');
+    }
+
+    // Reject file uploads for MARKS_ONLY assignments
+    if (assignment.template.isMarkOnly && file) {
+      throw new BadRequestException('This assignment type does not accept file uploads');
+    }
+
+    // Require file for UPLOAD_BASED assignments
+    if (!assignment.template.isMarkOnly && !file) {
+      throw new BadRequestException('A PDF file is required for this assignment type');
     }
 
     // 2. Validate Deadline (unless reopened)
@@ -110,16 +121,20 @@ export class AssignmentsService {
       throw new BadRequestException('Submission deadline has passed');
     }
 
-    // 3. File Validation (PDF only, 5MB)
-    if (file.mimetype !== 'application/pdf') {
-      throw new BadRequestException('Only PDF uploads are allowed for assignments');
-    }
-    if (file.size > 5 * 1024 * 1024) {
-      throw new BadRequestException('Assignment file size cannot exceed 5MB');
+    // 3. File validation (PDF only, 3MB max) — only for upload-based
+    if (file) {
+      if (file.mimetype !== 'application/pdf') {
+        throw new BadRequestException('Only PDF files are accepted');
+      }
+      if (file.size > 3 * 1024 * 1024) {
+        throw new BadRequestException('File size cannot exceed 3MB');
+      }
     }
 
-    // 4. Upload File
-    const storageKey = await this.storage.uploadFile(file, `assignments/${assignmentId}/${userId}`);
+    // 4. Upload File (only for UPLOAD_BASED)
+    const storageKey = file
+      ? await this.storage.uploadFile(file, `assignments/${assignmentId}/${userId}`)
+      : null;
 
     // 5. Transactional versioning
     return this.prisma.$transaction(async (tx) => {
@@ -140,14 +155,15 @@ export class AssignmentsService {
         where: { assignmentSubmissionId: submission.id }
       });
 
+      // For MARKS_ONLY: create a version record with empty file metadata
       const version = await tx.submissionVersion.create({
         data: {
           assignmentSubmissionId: submission.id,
-          storageKey,
-          originalFilename: file.originalname,
-          mimeType: file.mimetype,
-          extension: path.extname(file.originalname),
-          fileSize: file.size,
+          storageKey: storageKey ?? 'marks-only',
+          originalFilename: file?.originalname ?? 'marks-only',
+          mimeType: file?.mimetype ?? 'application/octet-stream',
+          extension: file ? path.extname(file.originalname) : '',
+          fileSize: file?.size ?? 0,
           versionNumber: versionCount + 1,
           uploadedById: userId,
         },

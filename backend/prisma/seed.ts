@@ -1,5 +1,5 @@
 import "dotenv/config";
-import { PrismaClient, Role, LifecycleStatus, AcademicStatus, AssignmentCategory } from '@prisma/client';
+import { PrismaClient, Role, LifecycleStatus, AssignmentCategory } from '@prisma/client';
 import { PrismaPg } from '@prisma/adapter-pg';
 import { Pool } from 'pg';
 import { faker } from '@faker-js/faker';
@@ -11,12 +11,12 @@ const adapter = new PrismaPg(pool);
 const prisma = new PrismaClient({ adapter });
 
 async function main() {
-  console.log('Starting Relational Academic Seeding (Phase 4B)...');
-  faker.seed(456); 
+  console.log('Aurora ERP — Seeding foundational structure...');
+  faker.seed(456);
 
   const passwordHash = await argon2.hash('Aurora@123');
 
-  // 1. Deep Clean
+  // ─── Deep Clean ─────────────────────────────────────────────────────────────
   console.log('Cleaning database...');
   await prisma.auditLog.deleteMany();
   await prisma.notice.deleteMany();
@@ -27,6 +27,7 @@ async function main() {
   await prisma.attendanceSession.deleteMany();
   await prisma.studentEnrollment.deleteMany();
   await prisma.facultyAssignment.deleteMany();
+  await prisma.sectionSubject.deleteMany();
   await prisma.studentProfile.deleteMany();
   await prisma.facultyProfile.deleteMany();
   await prisma.adminProfile.deleteMany();
@@ -38,160 +39,75 @@ async function main() {
   await prisma.course.deleteMany();
   await prisma.department.deleteMany();
 
-  // 2. Core Hierarchy
-  const deptCS = await prisma.department.create({ 
-    data: { name: 'Computer Science & Engineering', code: 'CSE' } 
+  // ─── Academic Hierarchy (foundational, not operational) ──────────────────────
+  console.log('Creating academic hierarchy...');
+
+  const deptCS = await prisma.department.create({
+    data: { name: 'Computer Science & Engineering', code: 'CSE' },
   });
 
-  const course = await prisma.course.create({ 
-    data: { name: 'B.Tech Computer Science', code: 'BT-CSE', departmentId: deptCS.id } 
+  const deptEC = await prisma.department.create({
+    data: { name: 'Electronics & Communication', code: 'ECE' },
   });
 
-  const sections = [];
-  const subjects = [];
-  const terms = [];
-  const years = [];
+  const courseCSE = await prisma.course.create({
+    data: { name: 'B.Tech Computer Science', code: 'BT-CSE', departmentId: deptCS.id },
+  });
 
-  // Create 4 Years
+  const courseECE = await prisma.course.create({
+    data: { name: 'B.Tech Electronics', code: 'BT-ECE', departmentId: deptEC.id },
+  });
+
+  // 4 Years × 2 Terms each for CSE
   for (let y = 1; y <= 4; y++) {
-    const year = await prisma.year.create({ 
-      data: { 
-        number: y, 
-        courseId: course.id,
-        academicYear: `202${2+y}-2${3+y}`,
-        isCurrent: y === 2 // Let's make Year 2 current
-      } 
-    });
-    years.push(year);
-
-    // 4 Terms per Year
-    for (let t = 1; t <= 4; t++) {
-      const term = await prisma.term.create({ 
-        data: { 
-          number: t, 
-          name: `Term ${t}`, 
-          yearId: year.id,
-          isCurrent: y === 2 && t === 1 // Term 1 of Year 2 is active
-        } 
-      });
-      terms.push(term);
-      
-      // 2 Sections per Term
-      for (const sName of ['A', 'B']) {
-        const section = await prisma.section.create({ 
-          data: { 
-            name: sName, 
-            termId: term.id,
-            status: LifecycleStatus.ACTIVE
-          } 
-        });
-        sections.push(section);
-      }
-
-      // 4 Subjects per Term
-      for (let sub = 1; sub <= 4; sub++) {
-        const subject = await prisma.subject.create({
-          data: {
-            name: faker.helpers.arrayElement([
-              'Data Structures', 'Algorithms', 'Network Security', 'Database Systems', 
-              'Cloud Computing', 'Full Stack Dev', 'ML Models', 'Software Engineering'
-            ]) + ` (Y${y}T${t}.${sub})`,
-            code: `CS-${y}${t}${sub}`,
-            termId: term.id,
-            credits: 3
-          }
-        });
-        subjects.push(subject);
-      }
-    }
-  }
-
-  const activeTerm = terms.find(t => t.isCurrent)!;
-  const activeYear = years.find(y => y.isCurrent)!;
-  const activeSections = sections.filter(s => s.termId === activeTerm.id);
-
-  // 3. Faculty
-  console.log('Creating Faculty...');
-  const facultyProfiles = [];
-  for (let i = 0; i < 10; i++) {
-    const fName = faker.person.firstName();
-    const lName = faker.person.lastName();
-    const user = await prisma.user.create({
+    const year = await prisma.year.create({
       data: {
-        email: i === 0 ? 'faculty@aurora.ac.in' : `faculty${i}@aurora.ac.in`,
-        passwordHash,
-        role: Role.FACULTY,
-        facultyProfile: {
-          create: {
-            firstName: fName,
-            lastName: lName,
-            staffId: `FAC-${1000 + i}`,
-            designation: 'Professor'
-          }
-        }
+        number: y,
+        courseId: courseCSE.id,
+        academicYear: `202${2 + y}-2${3 + y}`,
+        isCurrent: y === 2,
       },
-      include: { facultyProfile: true }
-    });
-    facultyProfiles.push(user.facultyProfile!);
-  }
-
-  // 4. Students & Enrollments
-  console.log('Creating Students & Enrollments...');
-  for (let i = 0; i < 40; i++) {
-    const fName = faker.person.firstName();
-    const lName = faker.person.lastName();
-    const targetSection = faker.helpers.arrayElement(activeSections);
-
-    const user = await prisma.user.create({
-      data: {
-        email: i === 0 ? 'student@aurora.ac.in' : `student${i}@aurora.ac.in`,
-        passwordHash,
-        role: Role.STUDENT,
-        studentProfile: {
-          create: {
-            firstName: fName,
-            lastName: lName,
-            registrationNumber: `REG-${24000 + i}`,
-            sectionId: targetSection.id,
-          }
-        }
-      },
-      include: { studentProfile: true }
     });
 
-    // Create current enrollment record
-    await prisma.studentEnrollment.create({
-      data: {
-        studentId: user.studentProfile!.id,
-        sectionId: targetSection.id,
-        termId: activeTerm.id,
-        isCurrent: true,
-        status: AcademicStatus.ACTIVE
-      }
-    });
-  }
-
-  // 5. Relational Faculty Assignments
-  console.log('Mapping Faculty to Sections & Subjects...');
-  for (const section of activeSections) {
-    const subjectsInTerm = subjects.filter(s => s.termId === section.termId);
-    for (const sub of subjectsInTerm) {
-      await prisma.facultyAssignment.create({
+    for (let t = 1; t <= 2; t++) {
+      await prisma.term.create({
         data: {
-          facultyId: faker.helpers.arrayElement(facultyProfiles).id,
-          sectionId: section.id,
-          subjectId: sub.id,
-          termId: activeTerm.id,
-          yearId: activeYear.id,
-          status: LifecycleStatus.ACTIVE
-        }
+          number: t,
+          name: `Semester ${t}`,
+          yearId: year.id,
+          isCurrent: y === 2 && t === 1,
+        },
       });
     }
   }
 
-  // 6. Assignment Templates (E4 — seeded globally, isGlobal = true)
-  console.log('Creating Assignment Templates...');
-  const uploadBasedTemplates = [
+  // 4 Years × 2 Terms each for ECE
+  for (let y = 1; y <= 4; y++) {
+    const year = await prisma.year.create({
+      data: {
+        number: y,
+        courseId: courseECE.id,
+        academicYear: `202${2 + y}-2${3 + y}`,
+        isCurrent: y === 2,
+      },
+    });
+
+    for (let t = 1; t <= 2; t++) {
+      await prisma.term.create({
+        data: {
+          number: t,
+          name: `Semester ${t}`,
+          yearId: year.id,
+          isCurrent: y === 2 && t === 1,
+        },
+      });
+    }
+  }
+
+  // ─── Assignment Templates (global, category-based) ───────────────────────────
+  console.log('Creating assignment templates...');
+
+  const uploadBased = [
     'Reflective Journal',
     'Lab Journal',
     'Assignment',
@@ -199,14 +115,15 @@ async function main() {
     'Project Report',
     'Case Study',
   ];
-  const marksOnlyTemplates = [
+
+  const marksOnly = [
     'Student Lecture',
     'Presentation',
     'Quiz',
     'Lab Quiz',
   ];
 
-  for (const name of uploadBasedTemplates) {
+  for (const name of uploadBased) {
     await prisma.assignmentTemplate.create({
       data: {
         name,
@@ -218,7 +135,7 @@ async function main() {
     });
   }
 
-  for (const name of marksOnlyTemplates) {
+  for (const name of marksOnly) {
     await prisma.assignmentTemplate.create({
       data: {
         name,
@@ -230,17 +147,60 @@ async function main() {
     });
   }
 
-  // 7. Admin
+  // ─── Admin Account ───────────────────────────────────────────────────────────
+  console.log('Creating admin account...');
   await prisma.user.create({
     data: {
       email: 'admin@aurora.ac.in',
       passwordHash,
       role: Role.ADMIN,
-      adminProfile: { create: { firstName: 'Aurora', lastName: 'Admin' } }
-    }
+      adminProfile: { create: { firstName: 'Aurora', lastName: 'Admin' } },
+    },
   });
 
-  console.log('Seeding complete. Relational graph established.');
+  // ─── Faculty Accounts (no assignments — admin assigns via UI) ─────────────────
+  console.log('Creating faculty accounts...');
+  const facultyNames = [
+    ['Arjun', 'Sharma'],
+    ['Priya', 'Menon'],
+    ['Rohit', 'Verma'],
+    ['Divya', 'Nair'],
+    ['Kiran', 'Reddy'],
+    ['Anjali', 'Pillai'],
+    ['Suresh', 'Kumar'],
+    ['Lakshmi', 'Iyer'],
+    ['Venkat', 'Rao'],
+    ['Meena', 'Krishnan'],
+  ];
+
+  for (let i = 0; i < facultyNames.length; i++) {
+    const [firstName, lastName] = facultyNames[i];
+    await prisma.user.create({
+      data: {
+        email: i === 0 ? 'faculty@aurora.ac.in' : `faculty${i}@aurora.ac.in`,
+        passwordHash,
+        role: Role.FACULTY,
+        facultyProfile: {
+          create: {
+            firstName,
+            lastName,
+            staffId: `FAC-${1000 + i}`,
+            designation: 'Assistant Professor',
+          },
+        },
+      },
+    });
+  }
+
+  console.log(`
+Aurora ERP seeded successfully.
+─────────────────────────────────
+  Admin:   admin@aurora.ac.in / Aurora@123
+  Faculty: faculty@aurora.ac.in / Aurora@123 (+ 9 more)
+
+  Sections, subjects, students, and faculty assignments
+  must be created through the Admin portal.
+─────────────────────────────────`);
 }
 
 main()

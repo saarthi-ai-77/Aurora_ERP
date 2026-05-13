@@ -24,6 +24,17 @@ export const usersApi = {
     );
     return response.data;
   },
+  createStudent: async (dto: {
+    firstName: string;
+    lastName: string;
+    email: string;
+    registrationNumber: string;
+    sectionId: string;
+  }) => {
+    const response = await api.post<ApiSuccessResponse<any>>("/users/students", dto);
+    return response.data;
+  },
+
   bulkUpload: async (file: File, role: string) => {
     const formData = new FormData();
     formData.append("file", file);

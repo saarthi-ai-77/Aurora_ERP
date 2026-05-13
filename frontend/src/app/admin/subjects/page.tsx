@@ -150,6 +150,26 @@ export default function AdminSubjectsPage() {
         <div className="card p-8 text-center" style={{ color: "var(--text-muted)" }}>
           Loading subjects…
         </div>
+      ) : subjects.length === 0 ? (
+        <div
+          className="card p-12 flex flex-col items-center justify-center text-center"
+          style={{ border: "2px dashed var(--border)" }}
+        >
+          <Library className="w-12 h-12 mb-4" style={{ color: "var(--text-muted)" }} />
+          <h3 className="font-semibold text-lg mb-2" style={{ color: "var(--text-primary)" }}>
+            No subjects created yet
+          </h3>
+          <p className="text-sm mb-6 max-w-sm" style={{ color: "var(--text-secondary)" }}>
+            Create subjects and assign them to terms. Then map them to sections from the Sections page.
+          </p>
+          <button
+            className="btn btn-primary flex items-center gap-2"
+            onClick={() => setShowCreateModal(true)}
+          >
+            <Plus className="w-4 h-4" />
+            Create Subject
+          </button>
+        </div>
       ) : (
         <div className="card overflow-hidden">
           <table className="w-full">

@@ -1,8 +1,9 @@
 import { Injectable, BadRequestException, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
-import { Role } from '@prisma/client';
+import { Role, AcademicStatus } from '@prisma/client';
 import * as argon2 from 'argon2';
 import * as XLSX from 'xlsx';
+import { CreateStudentDto } from './dto/create-student.dto';
 
 @Injectable()
 export class UsersService {
@@ -95,6 +96,56 @@ export class UsersService {
     });
     if (!user) throw new NotFoundException('User not found');
     return user;
+  }
+
+  async createStudent(dto: CreateStudentDto) {
+    const section = await this.prisma.section.findUnique({
+      where: { id: dto.sectionId },
+    });
+    if (!section) throw new BadRequestException('Section not found');
+    if (section.isArchived) throw new BadRequestException('Cannot assign student to an archived section');
+
+    const existing = await this.prisma.studentProfile.findFirst({
+      where: { registrationNumber: dto.registrationNumber },
+    });
+    if (existing) throw new BadRequestException(`Registration number "${dto.registrationNumber}" is already in use`);
+
+    const existingUser = await this.prisma.user.findUnique({ where: { email: dto.email } });
+    if (existingUser) throw new BadRequestException(`Email "${dto.email}" is already in use`);
+
+    const passwordHash = await argon2.hash('Aurora@123');
+
+    return this.prisma.$transaction(async (tx) => {
+      const user = await tx.user.create({
+        data: {
+          email: dto.email,
+          passwordHash,
+          role: Role.STUDENT,
+          isActive: true,
+          studentProfile: {
+            create: {
+              firstName: dto.firstName,
+              lastName: dto.lastName,
+              registrationNumber: dto.registrationNumber,
+              sectionId: dto.sectionId,
+            },
+          },
+        },
+        include: { studentProfile: true },
+      });
+
+      await tx.studentEnrollment.create({
+        data: {
+          studentId: user.studentProfile!.id,
+          sectionId: dto.sectionId,
+          termId: section.termId,
+          status: AcademicStatus.ACTIVE,
+          isCurrent: true,
+        },
+      });
+
+      return user;
+    });
   }
 
   async toggleStatus(id: string) {

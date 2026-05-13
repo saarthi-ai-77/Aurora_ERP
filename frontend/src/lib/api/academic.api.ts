@@ -49,6 +49,21 @@ export const academicApi = {
     return response.data;
   },
 
+  assignSubjectToSection: async (sectionId: string, subjectId: string) => {
+    const response = await api.post<ApiSuccessResponse<any>>(
+      `/academic/sections/${sectionId}/subjects`,
+      { subjectId },
+    );
+    return response.data;
+  },
+
+  removeSubjectFromSection: async (sectionId: string, subjectId: string) => {
+    const response = await api.delete<ApiSuccessResponse<any>>(
+      `/academic/sections/${sectionId}/subjects/${subjectId}`,
+    );
+    return response.data;
+  },
+
   // ─── E2: Subject Management ────────────────────────────────────────────────
 
   createSubject: async (dto: { name: string; code: string; termId: string; credits?: number }) => {

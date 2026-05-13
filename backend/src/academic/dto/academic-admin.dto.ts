@@ -74,3 +74,29 @@ export class CreateFacultyAssignmentDto {
   @IsUUID()
   yearId: string;
 }
+
+export class AssignSubjectToSectionDto {
+  @IsUUID()
+  subjectId: string;
+}
+
+export class CreateStudentDto {
+  @IsString()
+  @MaxLength(100)
+  firstName: string;
+
+  @IsString()
+  @MaxLength(100)
+  lastName: string;
+
+  @IsString()
+  @MaxLength(200)
+  email: string;
+
+  @IsString()
+  @MaxLength(50)
+  registrationNumber: string;
+
+  @IsUUID()
+  sectionId: string;
+}

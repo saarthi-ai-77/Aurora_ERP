@@ -2,6 +2,7 @@ import {
   Controller,
   Get,
   Post,
+  Body,
   Param,
   Patch,
   UseGuards,
@@ -19,6 +20,7 @@ import { AuditInterceptor } from '../common/audit-log/audit.interceptor';
 import { Audit } from '../common/audit-log/audit.decorator';
 import { Role, AuditAction } from '@prisma/client';
 import { FileInterceptor } from '@nestjs/platform-express';
+import { CreateStudentDto } from './dto/create-student.dto';
 
 @Controller('users')
 @UseGuards(JwtAuthGuard, RolesGuard)
@@ -28,6 +30,14 @@ export class UsersController {
   @Get('me/profile')
   getMyProfile(@Req() req: any) {
     return this.usersService.getMyProfile(req.user.userId);
+  }
+
+  @Post('students')
+  @Roles(Role.ADMIN)
+  @UseInterceptors(AuditInterceptor)
+  @Audit(AuditAction.USER_CREATED)
+  createStudent(@Body() dto: CreateStudentDto) {
+    return this.usersService.createStudent(dto);
   }
 
   @Get('admin/audit-logs')

@@ -117,11 +117,65 @@ export class AcademicEngineService {
             subject: { select: { id: true, name: true, code: true } },
           },
         },
+        sectionSubjects: {
+          where: { isActive: true },
+          include: {
+            subject: { select: { id: true, name: true, code: true, credits: true } },
+          },
+          orderBy: { createdAt: 'asc' },
+        },
       },
     });
 
     if (!section) throw new NotFoundException('Section not found');
     return section;
+  }
+
+  // ─── Section-Subject Mapping ──────────────────────────────────────────────────
+
+  async assignSubjectToSection(sectionId: string, subjectId: string) {
+    const [section, subject] = await Promise.all([
+      this.prisma.section.findUnique({ where: { id: sectionId } }),
+      this.prisma.subject.findUnique({ where: { id: subjectId } }),
+    ]);
+
+    if (!section) throw new NotFoundException('Section not found');
+    if (!subject) throw new NotFoundException('Subject not found');
+    if (subject.isArchived) throw new BadRequestException('Cannot assign an archived subject');
+    if (section.termId !== subject.termId) {
+      throw new BadRequestException('Subject must belong to the same term as the section');
+    }
+
+    try {
+      return await this.prisma.sectionSubject.create({
+        data: {
+          sectionId,
+          subjectId,
+          termId: section.termId,
+          isActive: true,
+        },
+        include: {
+          subject: { select: { id: true, name: true, code: true, credits: true } },
+        },
+      });
+    } catch (e: any) {
+      if (e.code === 'P2002') {
+        throw new BadRequestException('Subject is already assigned to this section');
+      }
+      throw e;
+    }
+  }
+
+  async removeSubjectFromSection(sectionId: string, subjectId: string) {
+    const mapping = await this.prisma.sectionSubject.findFirst({
+      where: { sectionId, subjectId },
+    });
+
+    if (!mapping) {
+      throw new NotFoundException('Subject is not assigned to this section');
+    }
+
+    return this.prisma.sectionSubject.delete({ where: { id: mapping.id } });
   }
 
   // ─── E2: Subject Management ──────────────────────────────────────────────────

@@ -26,6 +26,7 @@ import {
   CreateSubjectDto,
   UpdateSubjectDto,
   CreateFacultyAssignmentDto,
+  AssignSubjectToSectionDto,
 } from './dto/academic-admin.dto';
 
 @Controller('academic')
@@ -101,6 +102,25 @@ export class AcademicController {
     @Param('studentId', ParseUUIDPipe) studentId: string,
   ) {
     return this.enrollmentService.removeStudentFromSection(sectionId, studentId);
+  }
+
+  @Post('sections/:id/subjects')
+  @Roles(Role.ADMIN)
+  async assignSubjectToSection(
+    @Param('id', ParseUUIDPipe) sectionId: string,
+    @Body() dto: AssignSubjectToSectionDto,
+  ) {
+    return this.academicEngine.assignSubjectToSection(sectionId, dto.subjectId);
+  }
+
+  @Delete('sections/:id/subjects/:subjectId')
+  @Roles(Role.ADMIN)
+  @HttpCode(HttpStatus.OK)
+  async removeSubjectFromSection(
+    @Param('id', ParseUUIDPipe) sectionId: string,
+    @Param('subjectId', ParseUUIDPipe) subjectId: string,
+  ) {
+    return this.academicEngine.removeSubjectFromSection(sectionId, subjectId);
   }
 
   // ─── E2: Subject Management (Admin only) ─────────────────────────────────────
