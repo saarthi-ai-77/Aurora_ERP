@@ -19,10 +19,10 @@ export class AcademicAccessGuard implements CanActivate {
     // Admins have global access
     if (user.role === Role.ADMIN) return true;
 
-    const sectionId = request.params.sectionId || request.query.sectionId || request.body.sectionId;
-    const subjectId = request.params.subjectId || request.query.subjectId || request.body.subjectId;
-    const sessionId = request.params.sessionId || request.body.sessionId;
-    const assignmentId = request.params.assignmentId || request.body.assignmentId;
+    const sectionId = request.params.sectionId || request.query.sectionId || request.body?.sectionId;
+    const subjectId = request.params.subjectId || request.query.subjectId || request.body?.subjectId;
+    const sessionId = request.params.sessionId || request.body?.sessionId;
+    const assignmentId = request.params.assignmentId || request.body?.assignmentId;
     
     // In some cases, the ID might be a record ID or session ID directly in the path
     let recordId = request.params.recordId;
