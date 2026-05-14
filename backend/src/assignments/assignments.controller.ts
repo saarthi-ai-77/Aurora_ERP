@@ -75,8 +75,16 @@ export class AssignmentsController {
   @Delete(':id')
   @Roles(Role.FACULTY, Role.ADMIN)
   @UseGuards(AcademicAccessGuard)
-  deleteAssignment(@Req() req: any, @Param('id', ParseUUIDPipe) id: string) {
-    return this.assignmentsService.deleteAssignment(id, req.user);
+  async deleteAssignment(@Req() req: any, @Param('id', ParseUUIDPipe) id: string) {
+    console.log(`[AssignmentsController] DELETE request for assignment ${id}`);
+    try {
+      const result = await this.assignmentsService.deleteAssignment(id, req.user);
+      console.log(`[AssignmentsController] Successfully deleted assignment ${id}`);
+      return result;
+    } catch (error) {
+      console.error(`[AssignmentsController] Error deleting assignment ${id}:`, error);
+      throw error;
+    }
   }
 
   @Get('faculty/me')

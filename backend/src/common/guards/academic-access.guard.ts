@@ -36,16 +36,25 @@ export class AcademicAccessGuard implements CanActivate {
     // If no specific academic resource is being accessed, allow (role guards handle the rest)
     if (!sectionId && !subjectId && !sessionId && !assignmentId && !fallbackId && !recordId) return true;
 
-    const hasAccess = await this.academicContext.validateOwnership(
-      user.userId,
-      user.role,
-      { sectionId, subjectId, sessionId, assignmentId, recordId, fallbackId },
-    );
+    console.log(`[AcademicAccessGuard] Checking access for user ${user.userId} on resource:`, { sectionId, subjectId, sessionId, assignmentId, recordId, fallbackId });
 
-    if (!hasAccess) {
-      throw new ForbiddenException('You do not have permission to access this academic resource');
+    try {
+      const hasAccess = await this.academicContext.validateOwnership(
+        user.userId,
+        user.role,
+        { sectionId, subjectId, sessionId, assignmentId, recordId, fallbackId },
+      );
+
+      if (!hasAccess) {
+        console.warn(`[AcademicAccessGuard] Access DENIED for user ${user.userId}`);
+        throw new ForbiddenException('You do not have permission to access this academic resource');
+      }
+
+      console.log(`[AcademicAccessGuard] Access GRANTED for user ${user.userId}`);
+      return true;
+    } catch (error) {
+      console.error(`[AcademicAccessGuard] Error during ownership validation:`, error);
+      throw error;
     }
-
-    return true;
   }
 }
