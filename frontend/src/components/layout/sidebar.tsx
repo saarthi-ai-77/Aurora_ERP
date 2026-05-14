@@ -21,6 +21,7 @@ import {
   GraduationCap,
   Library,
   UserCheck,
+  Shield,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { clearStoredAuth, getStoredUser, Role } from "@/lib/auth";
@@ -50,6 +51,7 @@ const NAV_ITEMS: NavItem[] = [
   { label: "Faculty Assignments", href: "faculty-assignments", icon: UserCheck,  roles: ["ADMIN"] },
   { label: "Audit Logs",          href: "audit-logs",          icon: FileText,   roles: ["ADMIN"] },
   { label: "Settings",       href: "settings",     icon: Settings,       roles: ["ADMIN"] },
+  { label: "Security",       href: "settings/security", icon: Shield,   roles: ["ADMIN", "FACULTY", "STUDENT"] },
 ];
 
 interface SidebarProps {

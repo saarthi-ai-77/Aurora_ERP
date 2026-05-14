@@ -15,4 +15,8 @@ export const authApi = {
     const response = await api.get<ApiSuccessResponse<AuthUser>>("/auth/me");
     return response.data;
   },
+  changePassword: async (dto: { currentPassword: string; newPassword: string; confirmPassword: string }) => {
+    const response = await api.patch<ApiSuccessResponse<{ message: string }>>("/auth/change-password", dto);
+    return response.data;
+  },
 };

@@ -119,13 +119,20 @@ async function main() {
   // ─── Admin ──────────────────────────────────────────────────────────────────
   await prisma.user.upsert({
     where: { email: 'admin@aurora.ac.in' },
-    update: {},
+    update: { passwordHash, isActive: true, failedLoginAttempts: 0, lockoutUntil: null },
     create: {
       email: 'admin@aurora.ac.in',
       passwordHash,
       role: Role.ADMIN,
       adminProfile: { create: { firstName: 'Aurora', lastName: 'Admin' } },
     },
+  });
+
+  // ─── Demo Account Password Resets ──────────────────────────────────────────
+  // Ensure joel.prasanth and nikshithyadhagiri always authenticate with Aurora@123
+  await prisma.user.updateMany({
+    where: { email: { in: ['joel.prasanth@aurora.ac.in', 'nikshithyadhagiri@gmail.com'] } },
+    data: { passwordHash, isActive: true, failedLoginAttempts: 0, lockoutUntil: null },
   });
 
   // ─── Students ───────────────────────────────────────────────────────────────
