@@ -11,6 +11,7 @@ import {
   UploadedFile,
   ParseUUIDPipe,
   Req,
+  Delete,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';

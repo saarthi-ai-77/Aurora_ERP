@@ -224,7 +224,7 @@ export default function FacultyAssignmentsPage() {
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogCancel onClick={() => setAssignmentToDelete(null)}>Cancel</AlertDialogCancel>
             <AlertDialogAction 
               onClick={() => assignmentToDelete && deleteMutation.mutate(assignmentToDelete)}
               className="bg-red-600 hover:bg-red-700"
