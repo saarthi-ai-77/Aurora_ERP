@@ -8,7 +8,8 @@ export default defineConfig({
     seed: "ts-node ./prisma/seed.ts",
   },
   datasource: {
-    url: process.env["DATABASE_URL"],
-    directUrl: process.env["DIRECT_URL"],
+    // DIRECT_URL bypasses PgBouncer for CLI operations (migrate, generate, seed).
+    // The runtime PrismaService uses DATABASE_URL via the @prisma/adapter-pg pool.
+    url: process.env["DIRECT_URL"] ?? process.env["DATABASE_URL"],
   },
 });
