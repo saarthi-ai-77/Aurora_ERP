@@ -44,8 +44,8 @@ export class LocalStorageProvider implements IStorageProvider {
   }
 
   getFileUrl(filePath: string): string {
-    const port = process.env.PORT || 4000;
-    const baseUrl = process.env.API_URL || `http://localhost:${port}/api/v1`;
-    return `${baseUrl}/storage/${filePath}`;
+    // Return relative URL that will be handled by the frontend proxy (Vercel)
+    // or by the browser relative to the current origin in development.
+    return `/api/v1/storage/${filePath}`;
   }
 }
