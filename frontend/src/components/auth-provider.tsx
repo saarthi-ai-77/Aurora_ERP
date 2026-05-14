@@ -1,39 +1,45 @@
 "use client";
 import { useEffect, useState } from "react";
+import { usePathname } from "next/navigation";
 import { useAuthStore } from "@/lib/auth";
 import { authApi } from "@/lib/api";
 import { Loader2 } from "lucide-react";
 import { useAcademic } from "@/hooks/use-academic";
 
+const PUBLIC_PATHS = ['/login'];
+
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const setUser = useAuthStore((state) => state.setUser);
-  const user = useAuthStore((state) => state.user);
   const { fetchContext } = useAcademic();
   const [loading, setLoading] = useState(true);
+  const pathname = usePathname();
 
   useEffect(() => {
+    if (PUBLIC_PATHS.includes(pathname)) {
+      setLoading(false);
+      return;
+    }
+
     async function initAuth() {
-      if (typeof window !== 'undefined' && window.location.pathname === '/login') {
-        setLoading(false);
-        return;
-      }
       try {
         const response = await authApi.getMe();
         if (response.success) {
           setUser(response.data);
-          // Fetch academic context after successful auth
           fetchContext();
         }
-      } catch (error) {
-        console.error("Auth initialization failed", error);
-        setUser(null);
+      } catch (error: any) {
+        // Only clear session on explicit 401 — not on transient network failures
+        if (error?.response?.status === 401) {
+          setUser(null);
+        }
       } finally {
         setLoading(false);
       }
     }
 
     initAuth();
-  }, [setUser]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pathname]);
 
   if (loading) {
     return (
