@@ -9,6 +9,8 @@ export function middleware(request: NextRequest) {
   const isProtected = PROTECTED_PREFIXES.some((p) => pathname.startsWith(p));
   const hasSession = request.cookies.has('refreshToken');
 
+  console.log(`[Middleware] Path: ${pathname}, Protected: ${isProtected}, Session: ${hasSession}`);
+
   if (isProtected && !hasSession) {
     const loginUrl = new URL('/login', request.url);
     loginUrl.searchParams.set('from', pathname);

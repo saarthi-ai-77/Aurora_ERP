@@ -9,9 +9,19 @@ import { CreateAssignmentModal } from "./components/create-assignment-modal";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Loader2, Plus, Search, FileText, ChevronRight, Users, Calendar } from "lucide-react";
+import { Loader2, Plus, Search, FileText, ChevronRight, Users, Calendar, Trash2, Archive } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { toast } from "react-hot-toast";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 export default function FacultyAssignmentsPage() {
   const queryClient = useQueryClient();
@@ -19,6 +29,7 @@ export default function FacultyAssignmentsPage() {
   const [selectedAssignment, setSelectedAssignment] = useState<any>(null);
   const [reviewingSubmission, setReviewingSubmission] = useState<any>(null);
   const [showCreateModal, setShowCreateModal] = useState(false);
+  const [assignmentToDelete, setAssignmentToDelete] = useState<string | null>(null);
 
   const { data: assignments, isLoading } = useQuery({
     queryKey: ['faculty-assignments'],
@@ -33,12 +44,34 @@ export default function FacultyAssignmentsPage() {
     }
   });
 
+  const archiveMutation = useMutation({
+    mutationFn: (id: string) => assignmentsApi.archiveAssignment(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['faculty-assignments'] });
+      toast.success("Assignment moved to archive");
+    }
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: (id: string) => assignmentsApi.deleteAssignment(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['faculty-assignments'] });
+      toast.success("Assignment permanently deleted");
+      setAssignmentToDelete(null);
+    },
+    onError: (err: any) => {
+      toast.error(err.response?.data?.message || "Failed to delete assignment");
+    }
+  });
+
   if (isLoading) return <Loader2 className="animate-spin mx-auto my-12" />;
 
   const list = assignments?.data || [];
   const filtered = list.filter((a: any) => 
-    a.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    a.subject.name.toLowerCase().includes(searchQuery.toLowerCase())
+    a.status !== 'ARCHIVED' && (
+      a.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      a.subject.name.toLowerCase().includes(searchQuery.toLowerCase())
+    )
   );
 
   if (selectedAssignment) {
@@ -135,6 +168,34 @@ export default function FacultyAssignmentsPage() {
                           publishMutation.mutate(assignment.id);
                         }}>Publish</Button>
                       )}
+                      
+                      <div className="flex items-center gap-1">
+                        <Button 
+                          variant="ghost" 
+                          size="icon" 
+                          className="h-8 w-8 text-gray-400 hover:text-amber-600 hover:bg-amber-50"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            archiveMutation.mutate(assignment.id);
+                          }}
+                          title="Archive"
+                        >
+                          <Archive className="w-4 h-4" />
+                        </Button>
+                        <Button 
+                          variant="ghost" 
+                          size="icon" 
+                          className="h-8 w-8 text-gray-400 hover:text-red-600 hover:bg-red-50"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setAssignmentToDelete(assignment.id);
+                          }}
+                          title="Delete"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </Button>
+                      </div>
+
                       <Button variant="ghost" size="sm" className="group-hover:translate-x-1 transition-transform">
                         Review <ChevronRight className="w-4 h-4 ml-1" />
                       </Button>
@@ -152,6 +213,27 @@ export default function FacultyAssignmentsPage() {
           )}
         </div>
       </div>
+
+      <AlertDialog open={!!assignmentToDelete} onOpenChange={() => setAssignmentToDelete(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will permanently delete the assignment and all associated student submissions.
+              This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction 
+              onClick={() => assignmentToDelete && deleteMutation.mutate(assignmentToDelete)}
+              className="bg-red-600 hover:bg-red-700"
+            >
+              {deleteMutation.isPending ? "Deleting..." : "Delete Assignment"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

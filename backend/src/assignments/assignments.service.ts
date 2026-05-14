@@ -108,6 +108,32 @@ export class AssignmentsService {
   }
 
   /**
+   * Archives an assignment.
+   */
+  async archiveAssignment(id: string, requester: RequestUser) {
+    await this.ensureAssignmentAccess(requester, { assignmentId: id });
+
+    return this.prisma.assignment.update({
+      where: { id },
+      data: {
+        status: AssignmentStatus.ARCHIVED,
+        archivedAt: new Date(),
+      },
+    });
+  }
+
+  /**
+   * Deletes an assignment.
+   */
+  async deleteAssignment(id: string, requester: RequestUser) {
+    await this.ensureAssignmentAccess(requester, { assignmentId: id });
+
+    return this.prisma.assignment.delete({
+      where: { id },
+    });
+  }
+
+  /**
    * Fetches all available assignment templates.
    */
   async getTemplates() {

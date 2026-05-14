@@ -2,6 +2,12 @@ import axios from "axios";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "/api/v1";
 
+if (typeof window !== "undefined" && API_URL.startsWith("http")) {
+  console.warn(
+    "[Auth Safeguard] NEXT_PUBLIC_API_URL is an absolute URL. This will bypass the proxy and break cookie-based middleware authentication. Ensure it is relative (e.g., '/api/v1') in production."
+  );
+}
+
 export const api = axios.create({
   baseURL: API_URL,
   withCredentials: true, // IMPORTANT: Allows cookies to be sent and received

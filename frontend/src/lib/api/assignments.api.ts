@@ -29,6 +29,16 @@ export const assignmentsApi = {
     return response.data;
   },
 
+  archiveAssignment: async (id: string) => {
+    const response = await api.patch<ApiSuccessResponse<any>>(`/assignments/${id}/archive`);
+    return response.data;
+  },
+
+  deleteAssignment: async (id: string) => {
+    const response = await api.delete<ApiSuccessResponse<any>>(`/assignments/${id}`);
+    return response.data;
+  },
+
   getFacultyAssignments: async (params?: { limit?: number; offset?: number }) => {
     const response = await api.get<ApiSuccessResponse<any[]>>("/assignments/faculty/me", { params });
     return response.data;

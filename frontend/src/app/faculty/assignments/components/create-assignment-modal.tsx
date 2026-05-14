@@ -18,7 +18,6 @@ export function CreateAssignmentModal({ onClose }: Props) {
   const [context, setContext] = useState<any>(null);
   
   const [formData, setFormData] = useState({
-    title: "",
     instructions: "",
     templateId: "",
     subjectId: "",
@@ -84,17 +83,25 @@ export function CreateAssignmentModal({ onClose }: Props) {
   };
 
   const handleSubmit = (status: "DRAFT" | "PUBLISHED") => {
-    if (!formData.title || !formData.subjectId || !formData.dueDate || !formData.templateId) {
-      toast.error("Please fill all required fields, including Assignment Type");
+    const selectedTemplate = templates.find((t: any) => t.id === formData.templateId);
+    
+    if (!formData.templateId || !formData.subjectId || !formData.dueDate) {
+      toast.error("Please fill all required fields");
       return;
     }
 
+    const title = `${selectedTemplate.name} ${formData.variant}`;
+
     createMutation.mutate({
       ...formData,
+      title,
       status,
       dueDate: new Date(formData.dueDate),
     });
   };
+
+  const selectedTemplate = templates.find((t: any) => t.id === formData.templateId);
+  const generatedTitle = selectedTemplate ? `${selectedTemplate.name} ${formData.variant}` : "";
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-md animate-in fade-in duration-300">
@@ -107,14 +114,18 @@ export function CreateAssignmentModal({ onClose }: Props) {
         </div>
 
         <div className="p-6 space-y-6">
-          <div className="space-y-2">
-            <label className="text-sm font-black text-gray-800 uppercase tracking-tight">Assignment Title</label>
-            <input 
-              className="w-full p-3 rounded-xl border-2 border-gray-200 focus:border-indigo-500 focus:ring-4 focus:ring-indigo-100 outline-none transition-all placeholder:text-gray-400 text-gray-900 font-medium"
-              placeholder="e.g. Database Normalization Project"
-              value={formData.title}
-              onChange={(e) => setFormData({...formData, title: e.target.value})}
-            />
+          <div className="bg-indigo-50/50 p-4 rounded-2xl border-2 border-dashed border-indigo-200">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-[10px] font-black text-indigo-400 uppercase tracking-widest mb-1">Generated Title</p>
+                <h3 className="text-xl font-black text-indigo-900">
+                  {generatedTitle || "Select type & variant..."}
+                </h3>
+              </div>
+              <div className="bg-white p-2 rounded-xl shadow-sm">
+                <BookOpen className="w-6 h-6 text-indigo-500" />
+              </div>
+            </div>
           </div>
 
           <div className="grid grid-cols-2 gap-6">

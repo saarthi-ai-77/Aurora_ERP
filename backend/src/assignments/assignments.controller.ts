@@ -64,6 +64,20 @@ export class AssignmentsController {
     return this.assignmentsService.publishAssignment(id, req.user);
   }
 
+  @Patch(':id/archive')
+  @Roles(Role.FACULTY, Role.ADMIN)
+  @UseGuards(AcademicAccessGuard)
+  archiveAssignment(@Req() req: any, @Param('id', ParseUUIDPipe) id: string) {
+    return this.assignmentsService.archiveAssignment(id, req.user);
+  }
+
+  @Delete(':id')
+  @Roles(Role.FACULTY, Role.ADMIN)
+  @UseGuards(AcademicAccessGuard)
+  deleteAssignment(@Req() req: any, @Param('id', ParseUUIDPipe) id: string) {
+    return this.assignmentsService.deleteAssignment(id, req.user);
+  }
+
   @Get('faculty/me')
   @Roles(Role.FACULTY)
   getFacultyAssignments(
