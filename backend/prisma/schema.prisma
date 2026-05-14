@@ -565,8 +565,8 @@ model AssignmentAudit {
   editedById             String   @map("edited_by_id")
   editedAt               DateTime @default(now()) @map("edited_at")
 
-  assignment Assignment            @relation(fields: [assignmentId], references: [id])
-  submission AssignmentSubmission? @relation(fields: [assignmentSubmissionId], references: [id])
+  assignment Assignment            @relation(fields: [assignmentId], references: [id], onDelete: Cascade)
+  submission AssignmentSubmission? @relation(fields: [assignmentSubmissionId], references: [id], onDelete: Cascade)
   editedBy   User                  @relation(fields: [editedById], references: [id])
 
   @@index([assignmentId])

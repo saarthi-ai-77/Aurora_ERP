@@ -126,11 +126,18 @@ export class AssignmentsService {
    * Deletes an assignment.
    */
   async deleteAssignment(id: string, requester: RequestUser) {
-    await this.ensureAssignmentAccess(requester, { assignmentId: id });
+    try {
+      await this.ensureAssignmentAccess(requester, { assignmentId: id });
 
-    return this.prisma.assignment.delete({
-      where: { id },
-    });
+      console.log(`[AssignmentsService] Deleting assignment ${id} requested by ${requester.userId}`);
+
+      return await this.prisma.assignment.delete({
+        where: { id },
+      });
+    } catch (error) {
+      console.error(`[AssignmentsService] Failed to delete assignment ${id}:`, error);
+      throw error;
+    }
   }
 
   /**
