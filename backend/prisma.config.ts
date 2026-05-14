@@ -8,8 +8,8 @@ export default defineConfig({
     seed: "ts-node ./prisma/seed.ts",
   },
   datasource: {
-    // DIRECT_URL bypasses PgBouncer for CLI operations (migrate, generate, seed).
-    // The runtime PrismaService uses DATABASE_URL via the @prisma/adapter-pg pool.
-    url: process.env["DIRECT_URL"] ?? process.env["DATABASE_URL"],
+    // Prisma 7 uses this url for Migrate/CLI. 
+    // We use DIRECT_URL (port 5432) to ensure a session-mode connection over IPv4.
+    url: process.env["DIRECT_URL"],
   },
 });
