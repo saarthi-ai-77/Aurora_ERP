@@ -6,7 +6,7 @@ const nextConfig: NextConfig = {
     return [
       {
         source: '/api/v1/:path*',
-        destination: 'https://aurora-erp-backend.onrender.com/api/v1/:path*',
+        destination: `${process.env.BACKEND_URL || 'https://aurora-erp-backend.onrender.com'}/api/v1/:path*`,
       },
     ]
   },
