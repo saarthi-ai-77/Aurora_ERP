@@ -49,6 +49,7 @@ export class AttendanceController {
 
   @Post('sessions/:id/records')
   @Roles(Role.FACULTY)
+  @UseGuards(AcademicAccessGuard)
   @UseInterceptors(AuditInterceptor)
   @Audit(AuditAction.ATTENDANCE_MARKED)
   markAttendance(
@@ -60,6 +61,7 @@ export class AttendanceController {
 
   @Patch('records/:id')
   @Roles(Role.FACULTY)
+  @UseGuards(AcademicAccessGuard)
   @UseInterceptors(AuditInterceptor)
   @Audit(AuditAction.ATTENDANCE_EDITED)
   updateRecord(
@@ -72,6 +74,7 @@ export class AttendanceController {
 
   @Get('sessions/:id')
   @Roles(Role.FACULTY, Role.ADMIN)
+  @UseGuards(AcademicAccessGuard)
   getSession(@Param('id', ParseUUIDPipe) id: string) {
     return this.queryService.getSessionDetails(id);
   }
@@ -88,6 +91,7 @@ export class AttendanceController {
 
   @Post('sessions/:id/lock')
   @Roles(Role.FACULTY, Role.ADMIN)
+  @UseGuards(AcademicAccessGuard)
   lockSession(@Param('id', ParseUUIDPipe) id: string) {
     return this.attendanceService.lockSession(id);
   }

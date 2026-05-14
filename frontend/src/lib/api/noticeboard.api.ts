@@ -27,8 +27,8 @@ export const noticeboardApi = {
     return res.data;
   },
 
-  getAllNotices: async (): Promise<ApiSuccessResponse<any>> => {
-    const res = await api.get('/noticeboard/admin/all');
+  getAllNotices: async (params?: { page?: number; limit?: number }): Promise<ApiSuccessResponse<any>> => {
+    const res = await api.get('/noticeboard/admin/all', { params });
     return res.data;
   },
 };

@@ -3,11 +3,12 @@
 import { useState, useEffect } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { assignmentsApi } from "@/lib/api";
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Loader2, FileText, CheckCircle, Clock, AlertTriangle, Save, RotateCcw, X } from "lucide-react";
 import { toast } from "react-hot-toast";
+import { cn } from "@/lib/utils";
 
 interface Props {
   submission: any;
@@ -65,33 +66,56 @@ export function GradingPanel({ submission, assignment, onClose }: Props) {
         </div>
 
         <div className="flex-1 overflow-y-auto p-6 space-y-6">
-          {/* Submission Info */}
-          <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm uppercase text-gray-500 tracking-wider">Latest Submission</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="flex items-center justify-between p-4 bg-gray-100 rounded-lg border border-dashed border-gray-300">
+          {/* PDF Previewer */}
+          {submission.versions?.[0]?.storageKey && (
+            <div className="rounded-xl overflow-hidden border-2 border-gray-200 bg-white shadow-inner h-[500px] relative group">
+              <div className="absolute inset-0 flex items-center justify-center bg-gray-50 -z-10">
+                <Loader2 className="w-8 h-8 text-gray-300 animate-spin" />
+              </div>
+              <iframe 
+                src={`${submission.versions[0].storageKey}#toolbar=0`}
+                className="w-full h-full relative z-10"
+                title="Submission Preview"
+              />
+              <div className="absolute top-4 right-4 z-20 opacity-0 group-hover:opacity-100 transition-opacity">
+                <a
+                  href={submission.versions[0].storageKey}
+                  target="_blank"
+                  rel="noreferrer"
+                  className={cn(buttonVariants({ variant: "secondary", size: "sm" }), "shadow-lg")}
+                >
+                  Full Screen
+                </a>
+              </div>
+            </div>
+          )}
+
+          {/* Submission Info Card */}
+          <Card className="border-2">
+            <CardContent className="p-4">
+              <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
-                  <div className="p-2 bg-red-100 text-red-600 rounded">
+                  <div className="p-2 bg-red-50 text-red-600 rounded-lg">
                     <FileText className="w-6 h-6" />
                   </div>
                   <div>
-                    <p className="font-medium text-sm truncate max-w-[200px]">
+                    <p className="font-bold text-sm text-gray-900 truncate max-w-[240px]">
                       {submission.versions?.[0]?.originalFilename || "submission.pdf"}
                     </p>
-                    <p className="text-xs text-gray-400">
-                      {(submission.versions?.[0]?.fileSize / 1024 / 1024).toFixed(2)} MB
+                    <p className="text-xs text-gray-500 font-medium">
+                      {(submission.versions?.[0]?.fileSize / 1024 / 1024).toFixed(2)} MB • Version {submission.versions?.[0]?.versionNumber}
                     </p>
                   </div>
                 </div>
-                <Button variant="secondary" size="sm" asChild>
-                  <a href={submission.versions?.[0]?.storageKey} target="_blank" rel="noreferrer">Download</a>
-                </Button>
-              </div>
-              <div className="text-xs text-gray-500 flex justify-between">
-                <span>Submitted at: {new Date(submission.submittedAt).toLocaleString()}</span>
-                <span className="font-bold text-indigo-600 uppercase">Version {submission.versions?.[0]?.versionNumber}</span>
+                <div className="flex gap-2">
+                  <a
+                    href={submission.versions?.[0]?.storageKey}
+                    download
+                    className={buttonVariants({ variant: "outline", size: "sm" })}
+                  >
+                    Download
+                  </a>
+                </div>
               </div>
             </CardContent>
           </Card>

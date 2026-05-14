@@ -21,6 +21,7 @@ import { Audit } from '../common/audit-log/audit.decorator';
 import { Role, AuditAction } from '@prisma/client';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { CreateStudentDto } from './dto/create-student.dto';
+import { PaginationQueryDto } from '../common/dto/pagination.dto';
 
 @Controller('users')
 @UseGuards(JwtAuthGuard, RolesGuard)
@@ -42,17 +43,17 @@ export class UsersController {
 
   @Get('admin/audit-logs')
   @Roles(Role.ADMIN)
-  getAuditLogs(
-    @Query('limit') limit?: number,
-    @Query('offset') offset?: number,
-  ) {
-    return this.usersService.getAuditLogs(limit, offset);
+  getAuditLogs(@Query() query: PaginationQueryDto) {
+    return this.usersService.getAuditLogs(query);
   }
 
   @Get()
   @Roles(Role.ADMIN)
-  findAll(@Query('role') role?: Role) {
-    return this.usersService.findAll(role);
+  findAll(
+    @Query('role') role?: Role,
+    @Query() query: PaginationQueryDto = new PaginationQueryDto(),
+  ) {
+    return this.usersService.findAll(role, query);
   }
 
   @Get(':id')

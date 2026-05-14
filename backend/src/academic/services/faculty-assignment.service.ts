@@ -25,6 +25,31 @@ export class FacultyAssignmentService {
         );
       }
 
+      const term = await tx.term.findUnique({
+        where: { id: data.termId },
+        select: { yearId: true },
+      });
+
+      if (!term || term.yearId !== data.yearId) {
+        throw new BadRequestException('Relational integrity check failed: Term and Year do not match');
+      }
+
+      const sectionSubject = await tx.sectionSubject.findFirst({
+        where: {
+          sectionId: data.sectionId,
+          subjectId: data.subjectId,
+          termId: data.termId,
+          isActive: true,
+        },
+        select: { id: true },
+      });
+
+      if (!sectionSubject) {
+        throw new BadRequestException(
+          'Relational integrity check failed: Subject must be assigned to the section before faculty mapping',
+        );
+      }
+
       // Enforce one faculty per (section, subject, term)
       const existing = await tx.facultyAssignment.findFirst({
         where: {

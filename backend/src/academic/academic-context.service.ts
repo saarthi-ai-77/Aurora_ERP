@@ -140,21 +140,128 @@ export class AcademicContextService {
 
   /**
    * Centralized ownership validator.
+   * Enforces dual-level (Section + Subject) authorization for Faculty.
    */
-  async validateOwnership(userId: string, role: Role, resource: { sectionId?: string; subjectId?: string }) {
+  async validateOwnership(
+    userId: string,
+    role: Role,
+    resource: { 
+      sectionId?: string; 
+      subjectId?: string; 
+      sessionId?: string;
+      assignmentId?: string;
+      submissionId?: string;
+      recordId?: string;
+      fallbackId?: string;
+    }
+  ) {
     if (role === Role.ADMIN) return true;
+
+    // Resolve IDs from session/assignment/record if provided
+    let { sectionId, subjectId } = resource;
+    const resolvingSpecificResource = Boolean(
+      resource.sessionId ||
+        resource.assignmentId ||
+        resource.submissionId ||
+        resource.recordId ||
+        resource.fallbackId,
+    );
+
+    // Try to resolve from recordId first
+    if (resource.recordId) {
+      const record = await this.prisma.attendanceRecord.findUnique({
+        where: { id: resource.recordId },
+        select: { session: { select: { sectionId: true, subjectId: true } } },
+      });
+      if (record) {
+        sectionId = record.session.sectionId;
+        subjectId = record.session.subjectId;
+      }
+    }
+
+    // Try to resolve from sessionId
+    const sid = resource.sessionId || resource.fallbackId;
+    if (sid && (!sectionId || !subjectId)) {
+      const session = await this.prisma.attendanceSession.findUnique({
+        where: { id: sid },
+        select: { sectionId: true, subjectId: true },
+      });
+      if (session) {
+        sectionId = session.sectionId;
+        subjectId = session.subjectId;
+      }
+    }
+
+    // Try to resolve from assignmentId
+    const aid = resource.assignmentId || resource.fallbackId;
+    if (aid && (!sectionId || !subjectId)) {
+      const assignment = await this.prisma.assignment.findUnique({
+        where: { id: aid },
+        select: { sectionId: true, subjectId: true },
+      });
+      if (assignment) {
+        sectionId = assignment.sectionId;
+        subjectId = assignment.subjectId;
+      }
+    }
+
+    const subId = resource.submissionId || resource.fallbackId;
+    if (subId && (!sectionId || !subjectId)) {
+      const submission = await this.prisma.assignmentSubmission.findUnique({
+        where: { id: subId },
+        select: {
+          assignment: {
+            select: {
+              sectionId: true,
+              subjectId: true,
+            },
+          },
+        },
+      });
+      if (submission) {
+        sectionId = submission.assignment.sectionId;
+        subjectId = submission.assignment.subjectId;
+      }
+    }
+
+    if (resolvingSpecificResource && (!sectionId || !subjectId)) {
+      return false;
+    }
 
     if (role === Role.STUDENT) {
       const context = await this.resolveStudentContext(userId);
-      if (resource.sectionId && context.section.id !== resource.sectionId) return false;
-      if (resource.subjectId && !context.subjects.some((s: any) => s.id === resource.subjectId)) return false;
+      if (sectionId && context.section.id !== sectionId) return false;
+      if (subjectId) {
+        const isAssignedSubject = await this.prisma.sectionSubject.findFirst({
+          where: {
+            sectionId: context.section.id,
+            subjectId,
+            termId: context.term.id,
+            isActive: true,
+          },
+          select: { id: true },
+        });
+        if (!isAssignedSubject) return false;
+      }
+      // Students can see all subjects in their section
       return true;
     }
 
     if (role === Role.FACULTY) {
       const context = await this.resolveFacultyContext(userId);
-      if (resource.sectionId && !context.accessibleSections.includes(resource.sectionId)) return false;
-      if (resource.subjectId && !context.accessibleSubjects.includes(resource.subjectId)) return false;
+      
+      // Faculty MUST have mapping for BOTH section and subject
+      if (sectionId && subjectId) {
+        const hasMapping = context.assignments.some(
+          (a: any) => a.sectionId === sectionId && a.subjectId === subjectId
+        );
+        return hasMapping;
+      }
+
+      // Fallback for single-resource checks (less secure, but sometimes needed for general views)
+      if (sectionId && !context.accessibleSections.includes(sectionId)) return false;
+      if (subjectId && !context.accessibleSubjects.includes(subjectId)) return false;
+      
       return true;
     }
 

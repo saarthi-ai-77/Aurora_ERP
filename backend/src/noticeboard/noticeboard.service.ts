@@ -7,6 +7,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { AcademicContextService } from '../academic/academic-context.service';
 import { Role, NoticeStatus } from '@prisma/client';
 import { CreateNoticeDto, UpdateNoticeDto } from './dto/notice.dto';
+import { PaginationQueryDto, createPaginatedResponse } from '../common/dto/pagination.dto';
 
 const POSTED_BY_SELECT = {
   select: {
@@ -26,11 +27,21 @@ export class NoticeboardService {
   async getMyNotices(userId: string, role: Role) {
     const where: any = {
       status: NoticeStatus.PUBLISHED,
-      OR: [
-        { targetRoles: { has: role } },
-        { targetRoles: { isEmpty: true } },
+      OR: [],
+      AND: [
+        {
+          OR: [
+            { expiresAt: null },
+            { expiresAt: { gt: new Date() } },
+          ],
+        },
       ],
     };
+
+    where.OR = [
+      { targetRoles: { has: role } },
+      { targetRoles: { isEmpty: true } },
+    ];
 
     if (role === Role.STUDENT) {
       const context = await this.academicContext.resolveStudentContext(userId);
@@ -108,10 +119,20 @@ export class NoticeboardService {
     });
   }
 
-  async getAllNotices() {
-    return this.prisma.notice.findMany({
-      orderBy: { createdAt: 'desc' },
-      include: { postedBy: POSTED_BY_SELECT },
-    });
+  async getAllNotices(query: PaginationQueryDto) {
+    const { page, limit, skip } = query;
+
+    const [notices, total] = await Promise.all([
+      this.prisma.notice.findMany({
+        where: { status: { not: NoticeStatus.ARCHIVED } },
+        take: limit,
+        skip,
+        orderBy: { createdAt: 'desc' },
+        include: { postedBy: POSTED_BY_SELECT },
+      }),
+      this.prisma.notice.count({ where: { status: { not: NoticeStatus.ARCHIVED } } }),
+    ]);
+
+    return createPaginatedResponse(notices, total, page || 1, limit || 20);
   }
 }

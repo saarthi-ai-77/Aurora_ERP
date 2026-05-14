@@ -20,11 +20,12 @@ export default function AdminAuditLogsPage() {
 
   const { data, isLoading } = useQuery({
     queryKey: ["audit-logs", page],
-    queryFn: () => usersApi.getAuditLogs(PAGE_SIZE, page * PAGE_SIZE),
+    queryFn: () => usersApi.getAuditLogs(page + 1, PAGE_SIZE),
   });
 
-  const { logs = [], total = 0 } = data?.data ?? {};
-  const totalPages = Math.ceil(total / PAGE_SIZE);
+  const logs = data?.data ?? [];
+  const total = data?.pagination?.total ?? 0;
+  const totalPages = data?.pagination?.pages ?? 0;
 
   const filtered = logs.filter(
     (l: any) =>

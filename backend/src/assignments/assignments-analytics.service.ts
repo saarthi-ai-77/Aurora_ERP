@@ -1,15 +1,36 @@
-import { Injectable } from '@nestjs/common';
+import { ForbiddenException, Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
-import { GradingStatus } from '@prisma/client';
+import { AcademicContextService } from '../academic/academic-context.service';
+import { GradingStatus, Role } from '@prisma/client';
+
+type RequestUser = {
+  userId: string;
+  role: Role;
+};
 
 @Injectable()
 export class AssignmentsAnalyticsService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private academicContext: AcademicContextService,
+  ) {}
 
   /**
    * Analytics for a specific assignment.
    */
-  async getAssignmentStats(assignmentId: string) {
+  async getAssignmentStats(assignmentId: string, requester: RequestUser) {
+    if (requester.role !== Role.ADMIN) {
+      const hasAccess = await this.academicContext.validateOwnership(
+        requester.userId,
+        requester.role,
+        { assignmentId },
+      );
+
+      if (!hasAccess) {
+        throw new ForbiddenException('You do not have permission to access this assignment resource');
+      }
+    }
+
     const stats = await this.prisma.assignmentSubmission.groupBy({
       by: ['gradingStatus'],
       where: { assignmentId },

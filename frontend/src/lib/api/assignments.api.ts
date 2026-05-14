@@ -2,6 +2,11 @@ import { api } from "./axios.instance";
 import { ApiSuccessResponse } from "@shared/contracts/api.contracts";
 
 export const assignmentsApi = {
+  getTemplates: async () => {
+    const response = await api.get<ApiSuccessResponse<any[]>>("/assignments/templates");
+    return response.data;
+  },
+
   // ─── Faculty APIs ──────────────────────────────────────────────────────
 
   createAssignment: async (data: {
@@ -13,6 +18,7 @@ export const assignmentsApi = {
     maxMarks: number;
     dueDate: string;
     allowResubmissions?: boolean;
+    variant?: number;
   }) => {
     const response = await api.post<ApiSuccessResponse<any>>("/assignments", data);
     return response.data;

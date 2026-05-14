@@ -44,7 +44,8 @@ export class LocalStorageProvider implements IStorageProvider {
   }
 
   getFileUrl(filePath: string): string {
-    const baseUrl = process.env.API_URL || 'http://localhost:3001/api/v1';
+    const port = process.env.PORT || 4000;
+    const baseUrl = process.env.API_URL || `http://localhost:${port}/api/v1`;
     return `${baseUrl}/storage/${filePath}`;
   }
 }

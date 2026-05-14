@@ -1,6 +1,6 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
-import { AttendanceStatus } from '@prisma/client';
+import { AttendanceSessionStatus, AttendanceStatus } from '@prisma/client';
 
 @Injectable()
 export class AttendanceQueryService {
@@ -8,7 +8,12 @@ export class AttendanceQueryService {
 
   async getFacultySessions(facultyId: string, limit = 20, offset = 0) {
     return this.prisma.attendanceSession.findMany({
-      where: { facultyId },
+      where: {
+        facultyId,
+        status: { not: AttendanceSessionStatus.ARCHIVED },
+        section: { isArchived: false },
+        subject: { isArchived: false },
+      },
       include: {
         section: true,
         subject: true,
@@ -35,7 +40,9 @@ export class AttendanceQueryService {
       },
     });
 
-    if (!session) throw new NotFoundException('Session not found');
+    if (!session || session.status === AttendanceSessionStatus.ARCHIVED) {
+      throw new NotFoundException('Session not found');
+    }
 
     const stats = {
       present: session.records.filter((r) => r.status === AttendanceStatus.PRESENT).length,
@@ -63,7 +70,19 @@ export class AttendanceQueryService {
   async getStudentSubjectSummaries(enrollmentId: string) {
     const enrollment = await this.prisma.studentEnrollment.findUnique({
       where: { id: enrollmentId },
-      include: { term: { include: { subjects: { where: { isArchived: false } } } } },
+      include: {
+        section: {
+          include: {
+            sectionSubjects: {
+              where: { isActive: true },
+              include: {
+                subject: true,
+              },
+              orderBy: { createdAt: 'asc' },
+            },
+          },
+        },
+      },
     });
 
     if (!enrollment) throw new NotFoundException('Enrollment not found');
@@ -82,7 +101,9 @@ export class AttendanceQueryService {
       recordsBySubject.set(sid, existing);
     }
 
-    return enrollment.term.subjects.map((subject) => {
+    return enrollment.section.sectionSubjects
+      .filter(({ subject }) => !subject.isArchived)
+      .map(({ subject }) => {
       const records = recordsBySubject.get(subject.id) ?? [];
       return {
         subject,

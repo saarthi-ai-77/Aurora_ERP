@@ -6,6 +6,7 @@ import {
   Delete,
   Body,
   Param,
+  Query,
   ParseUUIDPipe,
   UseGuards,
   Req,
@@ -20,6 +21,8 @@ import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { Role } from '@prisma/client';
+import { PaginationQueryDto } from '../common/dto/pagination.dto';
+import { AcademicAccessGuard } from '../common/guards/academic-access.guard';
 import {
   CreateSectionDto,
   AddStudentsDto,
@@ -58,6 +61,36 @@ export class AcademicController {
     return this.academicEngine.getStructure();
   }
 
+  @Get('departments')
+  @Roles(Role.ADMIN, Role.FACULTY)
+  async getDepartments() {
+    return this.academicEngine.getDepartments();
+  }
+
+  @Get('departments/:id/courses')
+  @Roles(Role.ADMIN, Role.FACULTY)
+  async getCourses(@Param('id', ParseUUIDPipe) id: string) {
+    return this.academicEngine.getCourses(id);
+  }
+
+  @Get('courses/:id/years')
+  @Roles(Role.ADMIN, Role.FACULTY)
+  async getYears(@Param('id', ParseUUIDPipe) id: string) {
+    return this.academicEngine.getYears(id);
+  }
+
+  @Get('years/:id/terms')
+  @Roles(Role.ADMIN, Role.FACULTY)
+  async getTerms(@Param('id', ParseUUIDPipe) id: string) {
+    return this.academicEngine.getTerms(id);
+  }
+
+  @Get('terms/:id/sections')
+  @Roles(Role.ADMIN, Role.FACULTY)
+  async getSections(@Param('id', ParseUUIDPipe) id: string) {
+    return this.academicEngine.getSections(id);
+  }
+
   @Get('context/me')
   async getMyContext(@Req() req: any) {
     if (req.user.role === Role.STUDENT) {
@@ -92,6 +125,16 @@ export class AcademicController {
     // Resolve the section's termId before delegating to enrollment service
     const section = await this.academicEngine.getSectionDetail(sectionId);
     return this.enrollmentService.addStudentsToSection(sectionId, dto.studentIds, section.term.id);
+  }
+
+  @Get('sections/:id/students')
+  @Roles(Role.ADMIN, Role.FACULTY)
+  @UseGuards(AcademicAccessGuard)
+  async getSectionStudents(
+    @Param('id', ParseUUIDPipe) sectionId: string,
+    @Query() query: PaginationQueryDto,
+  ) {
+    return this.academicEngine.getSectionStudents(sectionId, query);
   }
 
   @Delete('sections/:id/students/:studentId')
@@ -175,7 +218,7 @@ export class AcademicController {
   }
 
   @Get('faculty/:id/assignments')
-  @Roles(Role.ADMIN, Role.FACULTY)
+  @Roles(Role.ADMIN)
   async getFacultyAssignments(@Param('id', ParseUUIDPipe) id: string) {
     return this.facultyAssignmentService.getFacultyAssignments(id);
   }

@@ -17,13 +17,15 @@ export default function AdminNoticeboardPage() {
   const queryClient = useQueryClient();
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
+  const [page, setPage] = useState(1);
+  const PAGE_SIZE = 20;
   
   // Form State
   const [formData, setFormData] = useState({
     title: "",
     content: "",
-    category: "GENERAL" as NoticeCategory,
-    priority: "MEDIUM" as NoticePriority,
+    category: NoticeCategory.GENERAL,
+    priority: NoticePriority.MEDIUM,
     isPinned: false,
     targetRoles: [] as Role[],
     targetDepartments: [] as string[],
@@ -32,8 +34,8 @@ export default function AdminNoticeboardPage() {
 
   // Queries
   const { data: noticesData, isLoading } = useQuery({
-    queryKey: ["admin-notices"],
-    queryFn: () => noticeboardApi.getAllNotices(),
+    queryKey: ["admin-notices", page],
+    queryFn: () => noticeboardApi.getAllNotices({ page, limit: PAGE_SIZE }),
   });
 
   const { data: academicData } = useQuery({
@@ -42,6 +44,7 @@ export default function AdminNoticeboardPage() {
   });
 
   const notices = noticesData?.data || [];
+  const noticePagination = noticesData?.pagination;
   const departments = academicData?.data?.departments || [];
   const sections = academicData?.data?.sections || [];
 
@@ -69,8 +72,8 @@ export default function AdminNoticeboardPage() {
     setFormData({
       title: "",
       content: "",
-      category: "GENERAL",
-      priority: "MEDIUM",
+      category: NoticeCategory.GENERAL,
+      priority: NoticePriority.MEDIUM,
       isPinned: false,
       targetRoles: [],
       targetDepartments: [],
@@ -212,6 +215,30 @@ export default function AdminNoticeboardPage() {
           </div>
         )}
       </div>
+
+      {noticePagination && noticePagination.pages > 1 && (
+        <div className="flex items-center justify-between text-sm text-gray-500">
+          <span>
+            Page {noticePagination.page} of {noticePagination.pages} · {noticePagination.total} notices
+          </span>
+          <div className="flex gap-2">
+            <button
+              className="btn-secondary px-3 py-1.5"
+              disabled={page <= 1}
+              onClick={() => setPage((p) => Math.max(1, p - 1))}
+            >
+              Previous
+            </button>
+            <button
+              className="btn-secondary px-3 py-1.5"
+              disabled={page >= noticePagination.pages}
+              onClick={() => setPage((p) => Math.min(noticePagination.pages, p + 1))}
+            >
+              Next
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Post Notice Modal */}
       <Modal 

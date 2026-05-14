@@ -4,6 +4,7 @@ import { Role, AcademicStatus } from '@prisma/client';
 import * as argon2 from 'argon2';
 import * as XLSX from 'xlsx';
 import { CreateStudentDto } from './dto/create-student.dto';
+import { PaginationQueryDto, createPaginatedResponse } from '../common/dto/pagination.dto';
 
 @Injectable()
 export class UsersService {
@@ -50,12 +51,14 @@ export class UsersService {
     return user;
   }
 
-  async getAuditLogs(limit = 50, offset = 0) {
+  async getAuditLogs(query: PaginationQueryDto) {
+    const { page, limit, skip } = query;
+
     const [logs, total] = await Promise.all([
       this.prisma.auditLog.findMany({
-        take: Number(limit),
-        skip: Number(offset),
-        orderBy: { createdAt: 'desc' },
+        take: limit,
+        skip,
+        orderBy: { createdAt: 'desc' }, // Deterministic Ordering
         include: {
           actor: {
             select: {
@@ -71,18 +74,29 @@ export class UsersService {
       this.prisma.auditLog.count(),
     ]);
 
-    return { logs, total, limit: Number(limit), offset: Number(offset) };
+    return createPaginatedResponse(logs, total, page || 1, limit || 20);
   }
 
-  async findAll(role?: Role) {
-    return this.prisma.user.findMany({
-      where: role ? { role } : {},
-      include: {
-        studentProfile: true,
-        facultyProfile: true,
-        adminProfile: true,
-      },
-    });
+  async findAll(role?: Role, query: PaginationQueryDto = new PaginationQueryDto()) {
+    const { page, limit, skip } = query;
+    const where = role ? { role } : {};
+
+    const [users, total] = await Promise.all([
+      this.prisma.user.findMany({
+        where,
+        include: {
+          studentProfile: true,
+          facultyProfile: true,
+          adminProfile: true,
+        },
+        orderBy: { createdAt: 'desc' },
+        take: limit,
+        skip,
+      }),
+      this.prisma.user.count({ where }),
+    ]);
+
+    return createPaginatedResponse(users, total, page, limit);
   }
 
   async findOne(id: string) {
@@ -169,7 +183,7 @@ export class UsersService {
 
     for (const row of data as any[]) {
       try {
-        const { email, firstName, lastName, identifier, designation, sectionName } = row;
+        const { email, firstName, lastName, identifier, designation, sectionId } = row;
 
         if (!email || !firstName || !lastName) {
           throw new Error(`Missing required fields for ${email || 'unknown user'}`);
@@ -190,19 +204,34 @@ export class UsersService {
           });
 
           if (role === Role.STUDENT) {
-            // Find section by name (assuming CSE only for now)
-            const section = await tx.section.findFirst({
-              where: { name: sectionName || 'A' },
-            });
-            if (!section) throw new Error(`Section ${sectionName} not found`);
+            if (!sectionId) {
+              throw new Error('Student rows must include a valid sectionId');
+            }
 
-            await tx.studentProfile.create({
+            const section = await tx.section.findUnique({
+              where: { id: sectionId },
+            });
+            if (!section || section.isArchived) {
+              throw new Error(`Section ${sectionId} not found or archived`);
+            }
+
+            const studentProfile = await tx.studentProfile.create({
               data: {
                 userId: user.id,
                 firstName,
                 lastName,
                 registrationNumber: identifier || `REG-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
                 sectionId: section.id,
+              },
+            });
+
+            await tx.studentEnrollment.create({
+              data: {
+                studentId: studentProfile.id,
+                sectionId: section.id,
+                termId: section.termId,
+                status: AcademicStatus.ACTIVE,
+                isCurrent: true,
               },
             });
           } else if (role === Role.FACULTY) {

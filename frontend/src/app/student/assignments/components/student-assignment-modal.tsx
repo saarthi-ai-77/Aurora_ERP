@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { assignmentsApi } from "@/lib/api";
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { Loader2, Upload, FileText, X, CheckCircle, Clock, AlertTriangle, History } from "lucide-react";
@@ -123,9 +123,17 @@ export function StudentAssignmentModal({ assignment, onClose }: Props) {
                         <p className="text-gray-400">{new Date(v.submittedAt).toLocaleDateString()}</p>
                       </div>
                     </div>
-                    <Button variant="ghost" size="icon" className="h-8 w-8 opacity-0 group-hover:opacity-100" asChild>
-                      <a href={v.storageKey} target="_blank" rel="noreferrer"><Upload className="w-4 h-4 rotate-180" /></a>
-                    </Button>
+                    <a
+                      href={v.storageKey}
+                      target="_blank"
+                      rel="noreferrer"
+                      className={cn(
+                        buttonVariants({ variant: "ghost", size: "icon" }),
+                        "h-8 w-8 opacity-0 group-hover:opacity-100",
+                      )}
+                    >
+                      <Upload className="w-4 h-4 rotate-180" />
+                    </a>
                   </div>
                 ))}
                 {versions.length === 0 && (

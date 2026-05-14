@@ -6,8 +6,10 @@ export const usersApi = {
     const response = await api.get<ApiSuccessResponse<any>>("/users/me/profile");
     return response.data;
   },
-  getAll: async (role?: string) => {
-    const response = await api.get<ApiSuccessResponse<any[]>>("/users", { params: { role } });
+  getAll: async (role?: string, params?: { page?: number; limit?: number }) => {
+    const response = await api.get<ApiSuccessResponse<any[]>>("/users", {
+      params: { role, ...params },
+    });
     return response.data;
   },
   getOne: async (id: string) => {
@@ -18,9 +20,9 @@ export const usersApi = {
     const response = await api.patch<ApiSuccessResponse<any>>(`/users/${id}/toggle-status`);
     return response.data;
   },
-  getAuditLogs: async (limit = 50, offset = 0) => {
+  getAuditLogs: async (page = 1, limit = 25) => {
     const response = await api.get<ApiSuccessResponse<any>>(
-      `/users/admin/audit-logs?limit=${limit}&offset=${offset}`,
+      `/users/admin/audit-logs?page=${page}&limit=${limit}`,
     );
     return response.data;
   },

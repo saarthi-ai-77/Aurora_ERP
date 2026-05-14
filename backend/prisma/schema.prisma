@@ -373,6 +373,7 @@ model StudentEnrollment {
   attendanceAudits  AttendanceAudit[]
   submissions       AssignmentSubmission[]
 
+  @@unique([studentId, termId])
   @@map("student_enrollments")
 }
 
@@ -478,6 +479,7 @@ model Assignment {
   academicYearId      String           @map("academic_year_id")
   termId              String           @map("term_id")
   maxMarks            Decimal          @map("max_marks") @db.Decimal(6, 2)
+  variant             Int?             @default(1)
   dueDate             DateTime         @map("due_date")
   allowResubmissions  Boolean          @default(true) @map("allow_resubmissions")
   status              AssignmentStatus @default(DRAFT)

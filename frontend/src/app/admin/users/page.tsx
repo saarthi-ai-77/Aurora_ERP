@@ -17,15 +17,22 @@ export default function AdminUsersPage() {
   const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
   const [uploadRole, setUploadRole] = useState("STUDENT");
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [page, setPage] = useState(1);
+  const PAGE_SIZE = 25;
 
   // Fetch Users
-  const { data: users = [], isLoading } = useQuery({
-    queryKey: ["users", roleFilter],
+  const { data: usersResponse, isLoading } = useQuery({
+    queryKey: ["users", roleFilter, page],
     queryFn: async () => {
-      const res = await usersApi.getAll(roleFilter === "all" ? undefined : roleFilter);
-      return res.data;
+      return usersApi.getAll(roleFilter === "all" ? undefined : roleFilter, {
+        page,
+        limit: PAGE_SIZE,
+      });
     },
   });
+
+  const users = usersResponse?.data ?? [];
+  const pagination = usersResponse?.pagination;
 
   // Toggle Status Mutation
   const toggleMutation = useMutation({
@@ -114,7 +121,10 @@ export default function AdminUsersPage() {
           <select 
             className="erp-input w-full md:w-40 bg-gray-50"
             value={roleFilter}
-            onChange={(e) => setRoleFilter(e.target.value)}
+            onChange={(e) => {
+              setRoleFilter(e.target.value);
+              setPage(1);
+            }}
           >
             <option value="all">All Roles</option>
             <option value="STUDENT">Students</option>
@@ -123,6 +133,30 @@ export default function AdminUsersPage() {
           </select>
         </div>
       </div>
+
+      {pagination && pagination.pages > 1 && (
+        <div className="flex items-center justify-between text-sm" style={{ color: "var(--text-secondary)" }}>
+          <span>
+            Page {pagination.page} of {pagination.pages} · {pagination.total} total members
+          </span>
+          <div className="flex gap-2">
+            <button
+              className="btn-secondary px-3 py-1.5"
+              disabled={page <= 1}
+              onClick={() => setPage((p) => Math.max(1, p - 1))}
+            >
+              Previous
+            </button>
+            <button
+              className="btn-secondary px-3 py-1.5"
+              disabled={page >= pagination.pages}
+              onClick={() => setPage((p) => Math.min(pagination.pages, p + 1))}
+            >
+              Next
+            </button>
+          </div>
+        </div>
+      )}
 
       <div className="card overflow-x-auto min-h-[400px]">
         {isLoading ? (

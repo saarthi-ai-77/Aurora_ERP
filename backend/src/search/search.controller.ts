@@ -1,4 +1,4 @@
-import { Controller, Get, Query, UseGuards } from '@nestjs/common';
+import { Controller, Get, Query, ServiceUnavailableException, UseGuards } from '@nestjs/common';
 import { SearchService } from './search.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 
@@ -9,6 +9,9 @@ export class SearchController {
 
   @Get('global')
   globalSearch(@Query('q') query: string) {
-    return this.searchService.globalSearch(query);
+    void query;
+    throw new ServiceUnavailableException(
+      'Global search is temporarily disabled during deployment recovery',
+    );
   }
 }

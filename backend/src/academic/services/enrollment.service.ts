@@ -54,13 +54,36 @@ export class EnrollmentService {
       );
     }
 
-    let enrolled = 0;
-    for (const studentId of studentIds) {
-      await this.enrollStudent(studentId, sectionId, termId);
-      enrolled++;
-    }
+    await this.prisma.$transaction(async (tx) => {
+      const section = await tx.section.findUnique({ where: { id: sectionId } });
+      if (!section || section.termId !== termId) {
+        throw new BadRequestException('Invalid section or term mapping');
+      }
 
-    return { enrolled };
+      for (const studentId of studentIds) {
+        await tx.studentEnrollment.updateMany({
+          where: { studentId, isCurrent: true },
+          data: { isCurrent: false },
+        });
+
+        await tx.studentEnrollment.create({
+          data: {
+            studentId,
+            sectionId,
+            termId,
+            status: AcademicStatus.ACTIVE,
+            isCurrent: true,
+          },
+        });
+
+        await tx.studentProfile.update({
+          where: { id: studentId },
+          data: { sectionId },
+        });
+      }
+    });
+
+    return { enrolled: studentIds.length };
   }
 
   async removeStudentFromSection(sectionId: string, studentId: string) {

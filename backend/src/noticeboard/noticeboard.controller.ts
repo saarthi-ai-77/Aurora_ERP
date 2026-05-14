@@ -9,7 +9,9 @@ import {
   Req,
   ParseUUIDPipe,
   UseInterceptors,
+  Query,
 } from '@nestjs/common';
+import { PaginationQueryDto } from '../common/dto/pagination.dto';
 import { NoticeboardService } from './noticeboard.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
@@ -67,7 +69,7 @@ export class NoticeboardController {
 
   @Get('admin/all')
   @Roles(Role.ADMIN)
-  getAllNotices() {
-    return this.noticeboardService.getAllNotices();
+  getAllNotices(@Query() query: PaginationQueryDto) {
+    return this.noticeboardService.getAllNotices(query);
   }
 }

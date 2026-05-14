@@ -45,8 +45,17 @@ export class CreateAssignmentDto {
   dueDate: Date;
 
   @IsOptional()
+  @IsNumber()
+  @Min(1)
+  variant?: number;
+
+  @IsOptional()
   @IsBoolean()
   allowResubmissions?: boolean;
+
+  @IsOptional()
+  @IsEnum(['DRAFT', 'PUBLISHED'])
+  status?: any;
 }
 
 export class GradeSubmissionDto {

@@ -2,8 +2,14 @@ import { Injectable, BadRequestException, ForbiddenException, NotFoundException 
 import { PrismaService } from '../prisma/prisma.service';
 import { AcademicContextService } from '../academic/academic-context.service';
 import { StorageService } from '../common/storage/storage.service';
-import { AssignmentStatus, GradingStatus, Role, LifecycleStatus, Prisma } from '@prisma/client';
+import { AssignmentStatus, GradingStatus, Role, LifecycleStatus } from '@prisma/client';
 import * as path from 'path';
+
+type RequestUser = {
+  userId: string;
+  role: Role;
+  facultyProfileId?: string | null;
+};
 
 @Injectable()
 export class AssignmentsService {
@@ -12,6 +18,23 @@ export class AssignmentsService {
     private academicContext: AcademicContextService,
     private storage: StorageService,
   ) {}
+
+  private async ensureAssignmentAccess(
+    requester: RequestUser,
+    resource: { assignmentId?: string; submissionId?: string },
+  ) {
+    if (requester.role === Role.ADMIN) return;
+
+    const hasAccess = await this.academicContext.validateOwnership(
+      requester.userId,
+      requester.role,
+      resource,
+    );
+
+    if (!hasAccess) {
+      throw new ForbiddenException('You do not have permission to access this assignment resource');
+    }
+  }
 
   /**
    * Creates a new assignment in DRAFT state.
@@ -27,6 +50,7 @@ export class AssignmentsService {
       maxMarks: number;
       dueDate: Date;
       allowResubmissions?: boolean;
+      variant?: number;
     }
   ) {
     const activeSession = await this.academicContext.getActiveAcademicSession();
@@ -42,6 +66,7 @@ export class AssignmentsService {
         subjectId: data.subjectId,
         termId: activeSession.term.id,
         status: LifecycleStatus.ACTIVE,
+        isArchived: false,
       },
     });
 
@@ -49,21 +74,55 @@ export class AssignmentsService {
       throw new ForbiddenException('You do not have an active teaching assignment for this section/subject');
     }
 
+    const sectionSubject = await this.prisma.sectionSubject.findFirst({
+      where: {
+        sectionId: data.sectionId,
+        subjectId: data.subjectId,
+        termId: activeSession.term.id,
+        isActive: true,
+      },
+      select: { id: true },
+    });
+
+    if (!sectionSubject) {
+      throw new BadRequestException('Subject is not assigned to the selected section');
+    }
+
     return this.prisma.assignment.create({
       data: {
-        ...data,
+        title: data.title,
+        instructions: data.instructions,
+        templateId: data.templateId,
+        sectionId: data.sectionId,
+        subjectId: data.subjectId,
+        maxMarks: data.maxMarks,
+        dueDate: data.dueDate,
+        variant: data.variant,
+        allowResubmissions: data.allowResubmissions ?? true,
         facultyAssignmentId: assignmentMapping.id,
         academicYearId: activeSession.year.id,
         termId: activeSession.term.id,
-        status: AssignmentStatus.DRAFT,
+        status: (data as any).status || AssignmentStatus.DRAFT,
       },
+    });
+  }
+
+  /**
+   * Fetches all available assignment templates.
+   */
+  async getTemplates() {
+    return this.prisma.assignmentTemplate.findMany({
+      where: { isGlobal: true },
+      orderBy: { name: 'asc' },
     });
   }
 
   /**
    * Publishes an assignment to students.
    */
-  async publishAssignment(id: string) {
+  async publishAssignment(id: string, requester: RequestUser) {
+    await this.ensureAssignmentAccess(requester, { assignmentId: id });
+
     return this.prisma.assignment.update({
       where: { id },
       data: { 
@@ -90,6 +149,30 @@ export class AssignmentsService {
     });
 
     if (!assignment) throw new NotFoundException('Assignment not found');
+    if (!context.enrollment) {
+      throw new ForbiddenException('No active enrollment found for this student');
+    }
+    if (
+      assignment.sectionId !== context.enrollment.sectionId ||
+      assignment.termId !== context.enrollment.termId
+    ) {
+      throw new ForbiddenException('You are not authorized to submit to this assignment');
+    }
+
+    const activeSectionSubject = await this.prisma.sectionSubject.findFirst({
+      where: {
+        sectionId: context.enrollment.sectionId,
+        subjectId: assignment.subjectId,
+        termId: context.enrollment.termId,
+        isActive: true,
+      },
+      select: { id: true },
+    });
+
+    if (!activeSectionSubject) {
+      throw new ForbiddenException('This assignment is not assigned to your section');
+    }
+
     if (assignment.status !== AssignmentStatus.PUBLISHED) {
       throw new BadRequestException('This assignment is not open for submissions');
     }
@@ -187,9 +270,11 @@ export class AssignmentsService {
    */
   async gradeSubmission(
     submissionId: string,
-    facultyId: string,
+    requester: RequestUser,
     data: { marks: number; feedback?: string }
   ) {
+    await this.ensureAssignmentAccess(requester, { submissionId });
+
     const submission = await this.prisma.assignmentSubmission.findUnique({
       where: { id: submissionId },
       include: { assignment: true },
@@ -197,17 +282,11 @@ export class AssignmentsService {
 
     if (!submission) throw new NotFoundException('Submission not found');
 
-    // Validate faculty assignment match
-    const mapping = await this.prisma.facultyAssignment.findFirst({
-      where: {
-        facultyId,
-        sectionId: submission.assignment.sectionId,
-        subjectId: submission.assignment.subjectId,
-      },
-    });
-
-    if (!mapping) {
-      throw new ForbiddenException('You are not authorized to grade this section');
+    // ─── Operational Workflow Hardening ──────────────────────────────────────
+    if (submission.assignment.status !== AssignmentStatus.PUBLISHED) {
+      throw new BadRequestException(
+        `Operational Constraint: Cannot grade a submission when the assignment is in ${submission.assignment.status} status. It must be PUBLISHED.`,
+      );
     }
 
     return this.prisma.$transaction(async (tx) => {
@@ -219,7 +298,7 @@ export class AssignmentsService {
           action: 'GRADE_UPDATED',
           previousValue: { marks: submission.finalMarks?.toString(), feedback: submission.feedback },
           newValue: { marks: data.marks.toString(), feedback: data.feedback },
-          editedById: (await tx.facultyProfile.findUnique({ where: { id: facultyId } }))!.userId,
+          editedById: requester.userId,
         },
       });
 
@@ -230,7 +309,7 @@ export class AssignmentsService {
           feedback: data.feedback,
           gradingStatus: GradingStatus.GRADED,
           gradedAt: new Date(),
-          gradedById: facultyId,
+          gradedById: requester.role === Role.FACULTY ? requester.facultyProfileId ?? null : null,
         },
       });
     });
@@ -239,12 +318,18 @@ export class AssignmentsService {
   /**
    * Reopens an assignment for a specific student.
    */
-  async reopenSubmission(submissionId: string, facultyId: string, reason?: string) {
+  async reopenSubmission(submissionId: string, requester: RequestUser, reason?: string) {
+    await this.ensureAssignmentAccess(requester, { submissionId });
+
     const submission = await this.prisma.assignmentSubmission.findUnique({
       where: { id: submissionId },
+      include: { assignment: true },
     });
 
     if (!submission) throw new NotFoundException('Submission not found');
+    if (submission.assignment.status !== AssignmentStatus.PUBLISHED) {
+      throw new BadRequestException('Only published assignments can be reopened');
+    }
 
     return this.prisma.$transaction(async (tx) => {
       await tx.assignmentAudit.create({
@@ -253,7 +338,7 @@ export class AssignmentsService {
           assignmentSubmissionId: submission.id,
           action: 'SUBMISSION_REOPENED',
           reason,
-          editedById: (await tx.facultyProfile.findUnique({ where: { id: facultyId } }))!.userId,
+          editedById: requester.userId,
         },
       });
 

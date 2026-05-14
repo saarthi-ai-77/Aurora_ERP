@@ -17,6 +17,11 @@ import { HealthModule } from './health/health.module';
 import { AuditLogModule } from './common/audit-log/audit-log.module';
 import { BullModule } from '@nestjs/bullmq';
 import { LoggerMiddleware } from './common/middleware/logger.middleware';
+import * as dotenv from 'dotenv';
+import * as path from 'path';
+
+// Load .env manually for top-level conditional logic
+dotenv.config({ path: path.join(process.cwd(), '.env') });
 
 const redisEnabled = process.env.REDIS_ENABLED !== 'false';
 

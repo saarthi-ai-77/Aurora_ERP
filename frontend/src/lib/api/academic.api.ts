@@ -22,6 +22,31 @@ export const academicApi = {
     return response.data;
   },
 
+  getDepartments: async () => {
+    const response = await api.get<ApiSuccessResponse<any[]>>("/academic/departments");
+    return response.data;
+  },
+
+  getCourses: async (departmentId: string) => {
+    const response = await api.get<ApiSuccessResponse<any[]>>(`/academic/departments/${departmentId}/courses`);
+    return response.data;
+  },
+
+  getYears: async (courseId: string) => {
+    const response = await api.get<ApiSuccessResponse<any[]>>(`/academic/courses/${courseId}/years`);
+    return response.data;
+  },
+
+  getTerms: async (yearId: string) => {
+    const response = await api.get<ApiSuccessResponse<any[]>>(`/academic/years/${yearId}/terms`);
+    return response.data;
+  },
+
+  getSections: async (termId: string) => {
+    const response = await api.get<ApiSuccessResponse<any[]>>(`/academic/terms/${termId}/sections`);
+    return response.data;
+  },
+
   // ─── E1: Section Management ────────────────────────────────────────────────
 
   createSection: async (dto: { name: string; termId: string }) => {
@@ -31,6 +56,14 @@ export const academicApi = {
 
   getSectionDetail: async (id: string) => {
     const response = await api.get<ApiSuccessResponse<any>>(`/academic/sections/${id}`);
+    return response.data;
+  },
+
+  getSectionStudents: async (sectionId: string, params?: { page?: number; limit?: number }) => {
+    const response = await api.get<ApiSuccessResponse<any[]>>(
+      `/academic/sections/${sectionId}/students`,
+      { params },
+    );
     return response.data;
   },
 

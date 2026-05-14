@@ -79,7 +79,7 @@ export default function AdminFacultyAssignmentsPage() {
 
   const { data: facultyData } = useQuery({
     queryKey: ["users", "faculty"],
-    queryFn: () => usersApi.getAll("FACULTY"),
+    queryFn: () => usersApi.getAll("FACULTY", { page: 1, limit: 100 }),
   });
 
   const rows = buildRows(assignmentsData?.data ?? []);

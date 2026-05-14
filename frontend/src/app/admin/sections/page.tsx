@@ -55,14 +55,29 @@ export default function AdminSectionsPage() {
   const qc = useQueryClient();
   const [searchQuery, setSearchQuery] = useState("");
   const [showCreateModal, setShowCreateModal] = useState(false);
-  const [createForm, setCreateForm] = useState({ name: "", termId: "" });
-
-  const { data, isLoading } = useQuery({
-    queryKey: ["academic", "tree"],
-    queryFn: () => academicApi.getAcademicTree(),
+  const [createForm, setCreateForm] = useState({ 
+    name: "", 
+    departmentId: "",
+    courseId: "",
+    yearId: "",
+    termId: "" 
   });
 
-  const { sections, terms } = flattenTree(data?.data ?? []);
+  // Main Listing Query (Lightweight)
+  const { data: structure, isLoading } = useQuery({
+    queryKey: ["academic", "structure"],
+    queryFn: () => academicApi.getStructure(),
+  });
+
+  const sections: SectionRow[] = (structure?.data?.sections ?? []).map((s: any) => ({
+    id: s.id,
+    name: s.name,
+    courseName: s.term?.year?.course?.name ?? "N/A",
+    departmentName: s.term?.year?.course?.department?.name ?? "N/A",
+    termName: s.term?.name ?? "N/A",
+    termId: s.term?.id ?? "",
+    studentCount: s._count?.studentProfiles ?? 0,
+  }));
 
   const filtered = sections.filter(
     (s) =>
@@ -71,12 +86,37 @@ export default function AdminSectionsPage() {
       s.departmentName.toLowerCase().includes(searchQuery.toLowerCase()),
   );
 
+  // Cascading Selection Queries for Modal
+  const { data: departments } = useQuery({
+    queryKey: ["academic", "departments"],
+    queryFn: () => academicApi.getDepartments(),
+    enabled: showCreateModal,
+  });
+
+  const { data: courses } = useQuery({
+    queryKey: ["academic", "courses", createForm.departmentId],
+    queryFn: () => academicApi.getCourses(createForm.departmentId),
+    enabled: !!createForm.departmentId,
+  });
+
+  const { data: years } = useQuery({
+    queryKey: ["academic", "years", createForm.courseId],
+    queryFn: () => academicApi.getYears(createForm.courseId),
+    enabled: !!createForm.courseId,
+  });
+
+  const { data: terms } = useQuery({
+    queryKey: ["academic", "terms", createForm.yearId],
+    queryFn: () => academicApi.getTerms(createForm.yearId),
+    enabled: !!createForm.yearId,
+  });
+
   const createMutation = useMutation({
     mutationFn: () => academicApi.createSection({ name: createForm.name, termId: createForm.termId }),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["academic", "tree"] });
+      qc.invalidateQueries({ queryKey: ["academic", "structure"] });
       setShowCreateModal(false);
-      setCreateForm({ name: "", termId: "" });
+      setCreateForm({ name: "", departmentId: "", courseId: "", yearId: "", termId: "" });
     },
   });
 
@@ -205,21 +245,73 @@ export default function AdminSectionsPage() {
             <div className="space-y-4">
               <div>
                 <label className="block text-sm font-medium mb-1" style={{ color: "var(--text-secondary)" }}>
-                  Term
+                  Department
                 </label>
                 <select
                   className="input w-full"
-                  value={createForm.termId}
-                  onChange={(e) => setCreateForm((f) => ({ ...f, termId: e.target.value }))}
+                  value={createForm.departmentId}
+                  onChange={(e) => setCreateForm((f) => ({ ...f, departmentId: e.target.value, courseId: "", yearId: "", termId: "" }))}
                 >
-                  <option value="">Select a term…</option>
-                  {terms.map((t) => (
-                    <option key={t.id} value={t.id}>
-                      {t.label}
-                    </option>
+                  <option value="">Select Department…</option>
+                  {(departments?.data ?? []).map((d: any) => (
+                    <option key={d.id} value={d.id}>{d.name}</option>
                   ))}
                 </select>
               </div>
+
+              {createForm.departmentId && (
+                <div>
+                  <label className="block text-sm font-medium mb-1" style={{ color: "var(--text-secondary)" }}>
+                    Course
+                  </label>
+                  <select
+                    className="input w-full"
+                    value={createForm.courseId}
+                    onChange={(e) => setCreateForm((f) => ({ ...f, courseId: e.target.value, yearId: "", termId: "" }))}
+                  >
+                    <option value="">Select Course…</option>
+                    {(courses?.data ?? []).map((c: any) => (
+                      <option key={c.id} value={c.id}>{c.name}</option>
+                    ))}
+                  </select>
+                </div>
+              )}
+
+              {createForm.courseId && (
+                <div>
+                  <label className="block text-sm font-medium mb-1" style={{ color: "var(--text-secondary)" }}>
+                    Academic Year
+                  </label>
+                  <select
+                    className="input w-full"
+                    value={createForm.yearId}
+                    onChange={(e) => setCreateForm((f) => ({ ...f, yearId: e.target.value, termId: "" }))}
+                  >
+                    <option value="">Select Year…</option>
+                    {(years?.data ?? []).map((y: any) => (
+                      <option key={y.id} value={y.id}>Year {y.number} ({y.academicYear})</option>
+                    ))}
+                  </select>
+                </div>
+              )}
+
+              {createForm.yearId && (
+                <div>
+                  <label className="block text-sm font-medium mb-1" style={{ color: "var(--text-secondary)" }}>
+                    Term
+                  </label>
+                  <select
+                    className="input w-full"
+                    value={createForm.termId}
+                    onChange={(e) => setCreateForm((f) => ({ ...f, termId: e.target.value }))}
+                  >
+                    <option value="">Select Term…</option>
+                    {(terms?.data ?? []).map((t: any) => (
+                      <option key={t.id} value={t.id}>{t.name}</option>
+                    ))}
+                  </select>
+                </div>
+              )}
 
               <div>
                 <label className="block text-sm font-medium mb-1" style={{ color: "var(--text-secondary)" }}>
