@@ -37,7 +37,7 @@ export function SubmissionReviewGrid({ assignment, onBack, onReviewStudent }: Pr
 
   if (isLoading) return <Loader2 className="animate-spin mx-auto my-12" />;
 
-  const list = submissions?.data || [];
+  const list = Array.isArray(submissions?.data) ? submissions.data : [];
 
   return (
     <div className="space-y-8 animate-in slide-in-from-right duration-300 pb-20">
