@@ -28,6 +28,7 @@ import { Role, AuditAction } from '@prisma/client';
 import {
   CreateAssignmentDto,
   GradeSubmissionDto,
+  FacultyAssignmentsQueryDto,
 } from './dto/assignments.dto';
 import { PaginationQueryDto } from '../common/dto/pagination.dto';
 
@@ -104,7 +105,7 @@ export class AssignmentsController {
   @Roles(Role.FACULTY)
   getFacultyAssignments(
     @GetUser('facultyProfileId') facultyId: string,
-    @Query() query: PaginationQueryDto,
+    @Query() query: FacultyAssignmentsQueryDto,
   ) {
     return this.queryService.getFacultyAssignments(facultyId, query);
   }

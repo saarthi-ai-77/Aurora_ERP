@@ -68,3 +68,15 @@ export class GradeSubmissionDto {
   @MaxLength(2000)
   feedback?: string;
 }
+
+import { PaginationQueryDto } from '../../common/dto/pagination.dto';
+
+export class FacultyAssignmentsQueryDto extends PaginationQueryDto {
+  @IsOptional()
+  @IsUUID()
+  sectionId?: string;
+
+  @IsOptional()
+  @IsUUID()
+  subjectId?: string;
+}
