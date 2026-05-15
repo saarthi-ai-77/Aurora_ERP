@@ -153,7 +153,7 @@ export class AssignmentsService {
   /**
    * Publishes an assignment to students with a specific deadline.
    */
-  async publishAssignment(id: string, requester: RequestUser, data?: { dueDate: Date }) {
+  async publishAssignment(id: string, requester: RequestUser, data?: { dueDate?: Date }) {
     await this.ensureAssignmentAccess(requester, { assignmentId: id });
 
     return this.prisma.assignment.update({
