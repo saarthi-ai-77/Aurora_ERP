@@ -39,8 +39,18 @@ export const assignmentsApi = {
     return response.data;
   },
 
-  getFacultyAssignments: async (params?: { limit?: number; offset?: number }) => {
+  getFacultyAssignments: async (params?: { 
+    limit?: number; 
+    offset?: number; 
+    sectionId?: string; 
+    subjectId?: string 
+  }) => {
     const response = await api.get<ApiSuccessResponse<any[]>>("/assignments/faculty/me", { params });
+    return response.data;
+  },
+
+  syncDrafts: async (data: { sectionId: string; subjectId: string }) => {
+    const response = await api.post<ApiSuccessResponse<any>>("/assignments/faculty/sync-drafts", data);
     return response.data;
   },
 
