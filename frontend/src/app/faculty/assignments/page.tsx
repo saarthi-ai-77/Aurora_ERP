@@ -41,7 +41,7 @@ export default function FacultyAssignmentsPage() {
   });
 
   useEffect(() => {
-    if (userProfile && userProfile.role !== 'FACULTY') {
+    if (userProfile?.data && userProfile.data.role !== 'FACULTY') {
       toast.error("Session Conflict Detected: You are no longer logged in as Faculty.");
       setTimeout(() => window.location.href = '/login', 2000);
     }
