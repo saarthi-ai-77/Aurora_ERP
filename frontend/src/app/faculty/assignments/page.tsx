@@ -66,17 +66,6 @@ export default function FacultyAssignmentsPage() {
   });
 
   // ─── Mutations ───────────────────────────────────────────────────────────
-  const syncDraftsMutation = useMutation({
-    mutationFn: (mapping: any) => assignmentsApi.syncDrafts({
-      sectionId: mapping.section.id,
-      subjectId: mapping.subject.id
-    }),
-    onSuccess: () => {
-      refetchAssignments();
-      toast.success("Assignment drafts updated");
-    }
-  });
-
   const publishMutation = useMutation({
     mutationFn: ({ id, dueDate }: { id: string; dueDate: string }) => 
       assignmentsApi.publishAssignment(id, dueDate),
@@ -116,7 +105,6 @@ export default function FacultyAssignmentsPage() {
   // Handle section selection and auto-sync
   const handleSelectSection = (mapping: any) => {
     setSelectedSection(mapping);
-    syncDraftsMutation.mutate(mapping);
   };
 
   // ─── View 1: Submission Review ───────────────────────────────────────────
@@ -151,24 +139,23 @@ export default function FacultyAssignmentsPage() {
       <div className="container mx-auto py-8 space-y-6 animate-in fade-in duration-500">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-4">
-            <Button variant="ghost" size="icon" onClick={() => setSelectedSection(null)}>
+            <Button variant="ghost" onClick={() => setSelectedSection(null)} className="h-10 w-10 p-0 rounded-full">
               <ArrowLeft className="w-5 h-5" />
             </Button>
             <div>
-              <h1 className="text-2xl font-extrabold tracking-tight">
+              <h2 className="text-2xl font-extrabold text-gray-900 leading-tight">
                 {selectedSection.subject.name}
-              </h1>
-              <p className="text-gray-500 text-sm">
+              </h2>
+              <p className="text-xs font-medium text-gray-500 uppercase tracking-widest">
                 Section {selectedSection.section.name} • {selectedSection.term.name}
               </p>
             </div>
           </div>
-          <div className="flex items-center gap-2">
-            <Button variant="outline" size="sm" onClick={() => syncDraftsMutation.mutate(selectedSection)} disabled={syncDraftsMutation.isPending}>
-              <RefreshCw className={cn("w-4 h-4 mr-2", syncDraftsMutation.isPending && "animate-spin")} />
-              Sync Templates
-            </Button>
-            <Button className="bg-indigo-600 hover:bg-indigo-700 shadow-lg shadow-indigo-100" onClick={() => setShowCreateModal(true)}>
+          <div className="flex items-center gap-3">
+            <Button 
+              onClick={() => setShowCreateModal(true)}
+              className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold shadow-lg shadow-indigo-100 h-10 px-6 rounded-xl"
+            >
               <Plus className="w-4 h-4 mr-2" /> New Custom
             </Button>
           </div>

@@ -5,6 +5,8 @@ import { StorageService } from '../common/storage/storage.service';
 import { AssignmentStatus, GradingStatus, Role } from '@prisma/client';
 import { PaginationQueryDto, createPaginatedResponse } from '../common/dto/pagination.dto';
 
+import { AssignmentsService } from './assignments.service';
+
 type RequestUser = {
   userId: string;
   role: Role;
@@ -16,6 +18,7 @@ export class AssignmentsQueryService {
     private prisma: PrismaService,
     private academicContext: AcademicContextService,
     private storage: StorageService,
+    private assignmentsService: AssignmentsService,
   ) {}
 
   private mapVersions(versions: any[]) {
@@ -50,6 +53,11 @@ export class AssignmentsQueryService {
   async getFacultyAssignments(facultyId: string, query: PaginationQueryDto) {
     const { page, limit, skip } = query;
     const { sectionId, subjectId } = query as any;
+
+    // AUTOMATIC SYNC: Ensure all 11 drafts exist every time this section is viewed
+    if (sectionId && subjectId) {
+      await this.assignmentsService.syncDraftsForSection(facultyId, sectionId, subjectId);
+    }
 
     const [assignments, total] = await Promise.all([
       this.prisma.assignment.findMany({
