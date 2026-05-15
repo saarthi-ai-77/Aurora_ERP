@@ -16,6 +16,7 @@ import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
 import { STORAGE_PROVIDER } from './storage.service';
 import * as StorageInterface from './storage.interface';
 import { SupabaseStorageProvider } from './supabase-storage.provider';
+import { R2StorageProvider } from './r2-storage.provider';
 import { Role } from '@prisma/client';
 import { AcademicContextService } from '../../academic/academic-context.service';
 import * as fs from 'fs';
@@ -81,6 +82,12 @@ export class StorageController {
 
       // For Supabase: redirect to a signed URL
       if (this.provider instanceof SupabaseStorageProvider) {
+        const signedUrl = await this.provider.createSignedUrl(filePath);
+        return res.redirect(302, signedUrl);
+      }
+
+      // For R2: redirect to a signed URL
+      if (this.provider instanceof R2StorageProvider) {
         const signedUrl = await this.provider.createSignedUrl(filePath);
         return res.redirect(302, signedUrl);
       }
