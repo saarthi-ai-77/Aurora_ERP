@@ -65,10 +65,12 @@ export class AssignmentsController {
   publishAssignment(
     @Req() req: any, 
     @Param('id', ParseUUIDPipe) id: string,
-    @Body('dueDate') dueDate?: string
+    @Body('dueDate') dueDate?: string,
+    @Body('setNumber') setNumber?: number
   ) {
     return this.assignmentsService.publishAssignment(id, req.user, { 
-      dueDate: dueDate ? new Date(dueDate) : undefined 
+      dueDate: dueDate ? new Date(dueDate) : undefined,
+      setNumber
     });
   }
 

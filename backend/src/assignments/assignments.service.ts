@@ -151,17 +151,36 @@ export class AssignmentsService {
   }
 
   /**
-   * Publishes an assignment to students with a specific deadline.
+   * Publishes an assignment by spawning a NEW active record from a draft template.
+   * This keeps the draft "Permanent" for future sets.
    */
-  async publishAssignment(id: string, requester: RequestUser, data?: { dueDate?: Date }) {
+  async publishAssignment(id: string, requester: RequestUser, data?: { dueDate?: Date, setNumber?: number }) {
+    const draft = await this.prisma.assignment.findUnique({
+      where: { id },
+      include: { template: true }
+    });
+
+    if (!draft) throw new NotFoundException('Draft assignment not found');
     await this.ensureAssignmentAccess(requester, { assignmentId: id });
 
-    return this.prisma.assignment.update({
-      where: { id },
-      data: { 
-        status: AssignmentStatus.PUBLISHED,
+    const titleSuffix = data?.setNumber ? ` (Set ${data.setNumber})` : '';
+    
+    // Create a NEW published assignment based on the draft
+    return this.prisma.assignment.create({
+      data: {
+        title: `${draft.title}${titleSuffix}`,
+        instructions: draft.instructions,
+        templateId: draft.templateId,
+        sectionId: draft.sectionId,
+        subjectId: draft.subjectId,
+        facultyAssignmentId: draft.facultyAssignmentId,
+        academicYearId: draft.academicYearId,
+        termId: draft.termId,
+        maxMarks: draft.maxMarks,
+        dueDate: data?.dueDate || draft.dueDate,
         publishedAt: new Date(),
-        ...(data?.dueDate && { dueDate: data.dueDate })
+        status: AssignmentStatus.PUBLISHED,
+        // We could add a sequence field here if needed, but Title is sufficient for now
       },
     });
   }

@@ -7,17 +7,28 @@ import { Calendar, X, Rocket } from "lucide-react";
 interface Props {
   assignment: any;
   onClose: () => void;
-  onConfirm: (dueDate: string) => void;
+  onConfirm: (dueDate: string, setNumber?: number) => void;
   isPending: boolean;
 }
 
 export function PublishAssignmentModal({ assignment, onClose, onConfirm, isPending }: Props) {
   const [dueDate, setDueDate] = useState("");
+  const [setNumber, setSetNumber] = useState<number | undefined>(undefined);
+
+  // Mapping for multiple sets based on assignment name
+  const getSetOptions = () => {
+    const name = assignment.title;
+    if (["Reflective Journal", "Lab Journal", "Quiz", "Lab Participation"].includes(name)) return 10;
+    if (["Assignment", "Lab Quiz"].includes(name)) return 2;
+    return 0;
+  };
+
+  const setOptionsCount = getSetOptions();
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!dueDate) return;
-    onConfirm(dueDate);
+    onConfirm(dueDate, setNumber);
   };
 
   return (
@@ -36,6 +47,23 @@ export function PublishAssignmentModal({ assignment, onClose, onConfirm, isPendi
               You are about to assign <span className="font-bold text-indigo-600">{assignment.title}</span> to Section <span className="font-bold text-indigo-600">{assignment.section.name}</span>.
             </p>
           </div>
+
+          {setOptionsCount > 0 && (
+            <div className="space-y-3">
+              <label className="text-sm font-black text-gray-800 uppercase tracking-tight">Select Set / Sequence</label>
+              <select 
+                required
+                className="w-full px-4 py-3 rounded-xl border-2 border-gray-200 focus:border-indigo-500 focus:ring-4 focus:ring-indigo-100 outline-none text-gray-900 font-medium bg-white"
+                value={setNumber || ""}
+                onChange={(e) => setSetNumber(Number(e.target.value))}
+              >
+                <option value="" disabled>Select Set Number</option>
+                {Array.from({ length: setOptionsCount }, (_, i) => i + 1).map(num => (
+                  <option key={num} value={num}>Set {num}</option>
+                ))}
+              </select>
+            </div>
+          )}
 
           <div className="space-y-3">
             <label className="text-sm font-black text-gray-800 uppercase tracking-tight">Set Submission Deadline</label>

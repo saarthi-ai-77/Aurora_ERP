@@ -67,8 +67,8 @@ export default function FacultyAssignmentsPage() {
 
   // ─── Mutations ───────────────────────────────────────────────────────────
   const publishMutation = useMutation({
-    mutationFn: ({ id, dueDate }: { id: string; dueDate: string }) => 
-      assignmentsApi.publishAssignment(id, dueDate),
+    mutationFn: ({ id, dueDate, setNumber }: { id: string; dueDate: string; setNumber?: number }) => 
+      assignmentsApi.publishAssignment(id, dueDate, setNumber),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['faculty-assignments'] });
       toast.success("Assignment assigned to students");
@@ -252,7 +252,7 @@ export default function FacultyAssignmentsPage() {
           <PublishAssignmentModal 
             assignment={assignmentToPublish}
             onClose={() => setAssignmentToPublish(null)}
-            onConfirm={(dueDate) => publishMutation.mutate({ id: assignmentToPublish.id, dueDate })}
+            onConfirm={(dueDate, setNumber) => publishMutation.mutate({ id: assignmentToPublish.id, dueDate, setNumber })}
             isPending={publishMutation.isPending}
           />
         )}
