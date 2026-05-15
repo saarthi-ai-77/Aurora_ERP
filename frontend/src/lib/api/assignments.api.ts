@@ -24,8 +24,8 @@ export const assignmentsApi = {
     return response.data;
   },
 
-  publishAssignment: async (id: string) => {
-    const response = await api.patch<ApiSuccessResponse<any>>(`/assignments/${id}/publish`);
+  publishAssignment: async (id: string, dueDate?: string) => {
+    const response = await api.patch<ApiSuccessResponse<any>>(`/assignments/${id}/publish`, { dueDate });
     return response.data;
   },
 

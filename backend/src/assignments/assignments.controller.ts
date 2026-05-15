@@ -61,8 +61,14 @@ export class AssignmentsController {
   @Patch(':id/publish')
   @Roles(Role.FACULTY, Role.ADMIN)
   @UseGuards(AcademicAccessGuard)
-  publishAssignment(@Req() req: any, @Param('id', ParseUUIDPipe) id: string) {
-    return this.assignmentsService.publishAssignment(id, req.user);
+  publishAssignment(
+    @Req() req: any, 
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body('dueDate') dueDate?: string
+  ) {
+    return this.assignmentsService.publishAssignment(id, req.user, { 
+      dueDate: dueDate ? new Date(dueDate) : undefined 
+    });
   }
 
   @Post('faculty/sync-drafts')

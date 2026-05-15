@@ -10,7 +10,7 @@ import { SectionGallery } from "./components/section-gallery";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Loader2, Plus, Search, FileText, ChevronRight, Users, Calendar, Trash2, Archive, ArrowLeft, RefreshCw } from "lucide-react";
+import { Loader2, Plus, Search, FileText, ChevronRight, Users, Calendar, Trash2, Archive, ArrowLeft, RefreshCw, Rocket } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { toast } from "react-hot-toast";
 import {
@@ -24,6 +24,8 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 
+import { PublishAssignmentModal } from "./components/publish-modal";
+
 export default function FacultyAssignmentsPage() {
   const queryClient = useQueryClient();
   const [searchQuery, setSearchQuery] = useState("");
@@ -31,6 +33,7 @@ export default function FacultyAssignmentsPage() {
   const [selectedAssignment, setSelectedAssignment] = useState<any>(null);
   const [reviewingSubmission, setReviewingSubmission] = useState<any>(null);
   const [showCreateModal, setShowCreateModal] = useState(false);
+  const [assignmentToPublish, setAssignmentToPublish] = useState<any>(null);
   const [assignmentToDelete, setAssignmentToDelete] = useState<string | null>(null);
 
   // ─── Session Role Guard ──────────────────────────────────────────────────
@@ -75,10 +78,12 @@ export default function FacultyAssignmentsPage() {
   });
 
   const publishMutation = useMutation({
-    mutationFn: (id: string) => assignmentsApi.publishAssignment(id),
+    mutationFn: ({ id, dueDate }: { id: string; dueDate: string }) => 
+      assignmentsApi.publishAssignment(id, dueDate),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['faculty-assignments'] });
-      toast.success("Assignment published to students");
+      toast.success("Assignment assigned to students");
+      setAssignmentToPublish(null);
     }
   });
 
@@ -227,10 +232,16 @@ export default function FacultyAssignmentsPage() {
                       </div>
                       <div className="flex items-center gap-3">
                         {assignment.status === 'DRAFT' && (
-                          <Button variant="outline" size="sm" onClick={(e) => {
-                            e.stopPropagation();
-                            publishMutation.mutate(assignment.id);
-                          }}>Publish to Section</Button>
+                          <Button 
+                            className="bg-indigo-600 hover:bg-indigo-700 text-white shadow-md shadow-indigo-100" 
+                            size="sm" 
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setAssignmentToPublish(assignment);
+                            }}
+                          >
+                            <Rocket className="w-4 h-4 mr-2" /> Assign
+                          </Button>
                         )}
                         <Button variant="ghost" size="sm" className="group-hover:translate-x-1 transition-transform">
                           Review <ChevronRight className="w-4 h-4 ml-1" />
@@ -249,6 +260,15 @@ export default function FacultyAssignmentsPage() {
             )}
           </div>
         </div>
+
+        {assignmentToPublish && (
+          <PublishAssignmentModal 
+            assignment={assignmentToPublish}
+            onClose={() => setAssignmentToPublish(null)}
+            onConfirm={(dueDate) => publishMutation.mutate({ id: assignmentToPublish.id, dueDate })}
+            isPending={publishMutation.isPending}
+          />
+        )}
       </div>
     );
   }

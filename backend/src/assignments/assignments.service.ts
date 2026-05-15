@@ -151,16 +151,17 @@ export class AssignmentsService {
   }
 
   /**
-   * Publishes an assignment to students.
+   * Publishes an assignment to students with a specific deadline.
    */
-  async publishAssignment(id: string, requester: RequestUser) {
+  async publishAssignment(id: string, requester: RequestUser, data?: { dueDate: Date }) {
     await this.ensureAssignmentAccess(requester, { assignmentId: id });
 
     return this.prisma.assignment.update({
       where: { id },
       data: { 
         status: AssignmentStatus.PUBLISHED,
-        publishedAt: new Date()
+        publishedAt: new Date(),
+        ...(data?.dueDate && { dueDate: data.dueDate })
       },
     });
   }
@@ -389,17 +390,32 @@ export class AssignmentsService {
    * for a specific section and subject.
    */
   async syncDraftsForSection(facultyId: string, sectionId: string, subjectId: string) {
+    console.log(`[AssignmentsService] Syncing drafts for Faculty:${facultyId}, Section:${sectionId}, Subject:${subjectId}`);
+    
     const activeSession = await this.academicContext.getActiveAcademicSession();
-    if (!activeSession) return;
+    if (!activeSession) {
+      console.warn('[AssignmentsService] Sync failed: No active academic session');
+      return;
+    }
 
     const templates = await this.getTemplates();
+    console.log(`[AssignmentsService] Found ${templates.length} global templates to sync`);
     
     const facultyAssignment = await this.prisma.facultyAssignment.findFirst({
-      where: { facultyId, sectionId, subjectId, status: LifecycleStatus.ACTIVE }
+      where: { 
+        facultyId, 
+        sectionId, 
+        subjectId, 
+        status: LifecycleStatus.ACTIVE 
+      }
     });
 
-    if (!facultyAssignment) return;
+    if (!facultyAssignment) {
+      console.warn('[AssignmentsService] Sync failed: Faculty does not own this mapping');
+      return;
+    }
 
+    let createdCount = 0;
     for (const template of templates) {
       // Check if this template already exists for this section/subject
       const exists = await this.prisma.assignment.findFirst({
@@ -416,7 +432,7 @@ export class AssignmentsService {
         await this.prisma.assignment.create({
           data: {
             title: template.name,
-            instructions: `Please follow the standard guidelines for ${template.name}.`,
+            instructions: `Standard ${template.name} submission guidelines apply.`,
             templateId: template.id,
             sectionId,
             subjectId,
@@ -428,7 +444,9 @@ export class AssignmentsService {
             status: AssignmentStatus.DRAFT
           }
         });
+        createdCount++;
       }
     }
+    console.log(`[AssignmentsService] Sync complete. Created ${createdCount} new drafts.`);
   }
 }
