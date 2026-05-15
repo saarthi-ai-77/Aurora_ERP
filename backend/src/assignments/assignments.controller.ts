@@ -65,6 +65,16 @@ export class AssignmentsController {
     return this.assignmentsService.publishAssignment(id, req.user);
   }
 
+  @Post('faculty/sync-drafts')
+  @Roles(Role.FACULTY)
+  syncDrafts(
+    @GetUser('facultyProfileId') facultyId: string,
+    @Body('sectionId') sectionId: string,
+    @Body('subjectId') subjectId: string,
+  ) {
+    return this.assignmentsService.syncDraftsForSection(facultyId, sectionId, subjectId);
+  }
+
   @Patch(':id/archive')
   @Roles(Role.FACULTY, Role.ADMIN)
   @UseGuards(AcademicAccessGuard)

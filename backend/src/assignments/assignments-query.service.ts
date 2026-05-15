@@ -49,12 +49,15 @@ export class AssignmentsQueryService {
    */
   async getFacultyAssignments(facultyId: string, query: PaginationQueryDto) {
     const { page, limit, skip } = query;
+    const { sectionId, subjectId } = query as any;
 
     const [assignments, total] = await Promise.all([
       this.prisma.assignment.findMany({
         where: {
           facultyAssignment: { facultyId },
           status: { not: AssignmentStatus.ARCHIVED },
+          ...(sectionId && { sectionId }),
+          ...(subjectId && { subjectId }),
         },
         include: {
           section: { select: { id: true, name: true } },
@@ -71,6 +74,8 @@ export class AssignmentsQueryService {
         where: {
           facultyAssignment: { facultyId },
           status: { not: AssignmentStatus.ARCHIVED },
+          ...(sectionId && { sectionId }),
+          ...(subjectId && { subjectId }),
         },
       }),
     ]);

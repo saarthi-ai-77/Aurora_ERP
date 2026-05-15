@@ -384,4 +384,51 @@ export class AssignmentsService {
       });
     });
   }
+  /**
+   * Automatically ensures all global assignment templates exist as DRAFTS 
+   * for a specific section and subject.
+   */
+  async syncDraftsForSection(facultyId: string, sectionId: string, subjectId: string) {
+    const activeSession = await this.academicContext.getActiveAcademicSession();
+    if (!activeSession) return;
+
+    const templates = await this.getTemplates();
+    
+    const facultyAssignment = await this.prisma.facultyAssignment.findFirst({
+      where: { facultyId, sectionId, subjectId, status: LifecycleStatus.ACTIVE }
+    });
+
+    if (!facultyAssignment) return;
+
+    for (const template of templates) {
+      // Check if this template already exists for this section/subject
+      const exists = await this.prisma.assignment.findFirst({
+        where: {
+          sectionId,
+          subjectId,
+          templateId: template.id,
+          status: { not: AssignmentStatus.ARCHIVED }
+        }
+      });
+
+      if (!exists) {
+        // Create permanent draft
+        await this.prisma.assignment.create({
+          data: {
+            title: template.name,
+            instructions: `Please follow the standard guidelines for ${template.name}.`,
+            templateId: template.id,
+            sectionId,
+            subjectId,
+            facultyAssignmentId: facultyAssignment.id,
+            academicYearId: activeSession.year.id,
+            termId: activeSession.term.id,
+            maxMarks: template.maxMarks,
+            dueDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), // Default 1 week out
+            status: AssignmentStatus.DRAFT
+          }
+        });
+      }
+    }
+  }
 }

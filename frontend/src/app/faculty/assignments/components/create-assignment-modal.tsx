@@ -10,9 +10,11 @@ import { toast } from "react-hot-toast";
 
 interface Props {
   onClose: () => void;
+  defaultSectionId?: string;
+  defaultSubjectId?: string;
 }
 
-export function CreateAssignmentModal({ onClose }: Props) {
+export function CreateAssignmentModal({ onClose, defaultSectionId, defaultSubjectId }: Props) {
   const queryClient = useQueryClient();
   const [loading, setLoading] = useState(true);
   const [context, setContext] = useState<any>(null);
@@ -20,8 +22,8 @@ export function CreateAssignmentModal({ onClose }: Props) {
   const [formData, setFormData] = useState({
     instructions: "",
     templateId: "",
-    subjectId: "",
-    sectionId: "",
+    subjectId: defaultSubjectId || "",
+    sectionId: defaultSectionId || "",
     maxMarks: 100,
     dueDate: "",
     variant: 1,

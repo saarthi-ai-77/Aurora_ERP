@@ -24,7 +24,25 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       try {
         const response = await authApi.getMe();
         if (response.success) {
-          setUser(response.data);
+          const user = response.data;
+
+          // Role-Based Access Guard (Prevents session leakage across tabs)
+          const isPathAdmin = pathname.startsWith('/admin');
+          const isPathFaculty = pathname.startsWith('/faculty');
+          const isPathStudent = pathname.startsWith('/student');
+
+          if (
+            (isPathAdmin && user.role !== 'ADMIN') ||
+            (isPathFaculty && user.role !== 'FACULTY') ||
+            (isPathStudent && user.role !== 'STUDENT')
+          ) {
+            console.error(`Session Conflict: Role ${user.role} is not allowed on ${pathname}`);
+            setUser(null);
+            window.location.href = '/login';
+            return;
+          }
+
+          setUser(user);
           fetchContext();
         }
       } catch (error: any) {
