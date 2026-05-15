@@ -106,7 +106,7 @@ export default function FacultyAssignmentsPage() {
     </div>
   );
 
-  const sections = context?.assignments || [];
+  const sections = context?.data?.assignments || [];
 
   // Handle section selection and auto-sync
   const handleSelectSection = (mapping: any) => {
