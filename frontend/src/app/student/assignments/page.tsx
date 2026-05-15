@@ -11,6 +11,7 @@ import { Loader2, Search, FileText, Clock, CheckCircle, AlertTriangle, ChevronRi
 import { cn } from "@/lib/utils";
 
 export default function StudentAssignmentsPage() {
+  const [view, setView] = useState<'ONGOING' | 'ALL'>('ONGOING');
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedAssignment, setSelectedAssignment] = useState<any>(null);
 
@@ -19,56 +20,81 @@ export default function StudentAssignmentsPage() {
     queryFn: () => assignmentsApi.getStudentAssignments(),
   });
 
-  if (isLoading) return <Loader2 className="animate-spin mx-auto my-12" />;
-
   const list = assignments?.data || [];
-  const filtered = list.filter((a: any) => 
+  
+  const ongoing = list.filter((a: any) => a.displayStatus === 'ONGOING');
+  const filtered = view === 'ONGOING' ? ongoing : list;
+
+  const displayList = filtered.filter((a: any) => 
     a.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
     a.subject.name.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
   return (
-    <div className="container mx-auto py-8 space-y-8 animate-in fade-in duration-500">
-      <div className="flex flex-col gap-2">
-        <h1 className="text-3xl font-extrabold tracking-tight">Assessments</h1>
-        <p className="text-gray-500">Track your academic submissions, grades, and feedback.</p>
+    <div className="container mx-auto py-8 space-y-12 animate-in fade-in duration-500 pb-20">
+      <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 border-b pb-8">
+        <div className="space-y-2">
+          <h1 className="text-4xl font-black tracking-tight text-gray-900 uppercase">My Assessments</h1>
+          <p className="text-gray-500 font-bold uppercase tracking-widest text-xs">Track your academic journey and deadlines</p>
+        </div>
+        <div className="flex bg-gray-100 p-1 rounded-2xl shadow-inner border-2 border-gray-100">
+          <button 
+            onClick={() => setView('ONGOING')}
+            className={cn(
+              "px-8 py-3 rounded-xl font-black text-xs uppercase tracking-widest transition-all",
+              view === 'ONGOING' ? "bg-white text-indigo-600 shadow-md" : "text-gray-400 hover:text-gray-600"
+            )}
+          >
+            Ongoing ({ongoing.length})
+          </button>
+          <button 
+            onClick={() => setView('ALL')}
+            className={cn(
+              "px-8 py-3 rounded-xl font-black text-xs uppercase tracking-widest transition-all",
+              view === 'ALL' ? "bg-white text-indigo-600 shadow-md" : "text-gray-400 hover:text-gray-600"
+            )}
+          >
+            All History ({list.length})
+          </button>
+        </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
-        <div className="md:col-span-1 space-y-6">
-          <Card className="shadow-sm">
-            <CardContent className="p-4 space-y-4">
-              <div className="relative">
-                <Search className="absolute left-3 top-3 w-4 h-4 text-gray-400" />
-                <input 
-                  className="w-full pl-9 pr-4 py-2 rounded-lg border focus:ring-2 focus:ring-indigo-500 outline-none text-sm"
-                  placeholder="Search by subject or name..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                />
-              </div>
-              <div className="pt-2 space-y-3">
-                <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest px-2">Quick Stats</p>
-                <StatRow label="Pending" value={list.filter((a: any) => !a.submissions?.[0]).length} color="text-amber-600" />
-                <StatRow label="Graded" value={list.filter((a: any) => a.submissions?.[0]?.gradingStatus === 'GRADED').length} color="text-green-600" />
-                <StatRow label="Total" value={list.length} color="text-gray-900" />
-              </div>
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-12">
+        <div className="md:col-span-1 space-y-8">
+          <div className="relative group">
+            <Search className="absolute left-4 top-4 w-5 h-5 text-gray-400 group-focus-within:text-indigo-500 transition-colors" />
+            <input 
+              className="w-full pl-12 pr-4 py-4 rounded-2xl border-2 border-gray-100 focus:border-indigo-500 focus:ring-4 focus:ring-indigo-50 shadow-sm outline-none font-bold placeholder:text-gray-300"
+              placeholder="Search..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+            />
+          </div>
+
+          <Card className="border-2 border-gray-100 shadow-xl shadow-gray-100/50 rounded-3xl overflow-hidden">
+            <CardHeader className="bg-gray-50/50 border-b p-6">
+              <CardTitle className="text-sm font-black uppercase tracking-widest text-gray-500">Summary</CardTitle>
+            </CardHeader>
+            <CardContent className="p-6 space-y-4">
+              <StatRow label="Ongoing" value={ongoing.length} color="text-indigo-600" />
+              <StatRow label="Missed" value={list.filter((a: any) => a.displayStatus === 'MISSED').length} color="text-rose-600" />
+              <StatRow label="Submitted" value={list.filter((a: any) => a.displayStatus === 'SUBMITTED').length} color="text-emerald-600" />
             </CardContent>
           </Card>
         </div>
 
-        <div className="md:col-span-3 space-y-4">
-          {filtered.map((assignment: any) => (
+        <div className="md:col-span-3 space-y-6">
+          {displayList.map((assignment: any) => (
             <AssignmentRow 
               key={assignment.id} 
               assignment={assignment} 
               onClick={() => setSelectedAssignment(assignment)}
             />
           ))}
-          {filtered.length === 0 && (
-            <div className="text-center py-20 bg-gray-50 rounded-2xl border border-dashed">
-              <BookOpen className="w-12 h-12 text-gray-300 mx-auto mb-4" />
-              <p className="text-gray-500 font-medium">No assessments found.</p>
+          {displayList.length === 0 && (
+            <div className="text-center py-24 bg-gray-50 rounded-3xl border-4 border-dashed border-gray-100">
+              <BookOpen className="w-20 h-20 text-gray-200 mx-auto mb-4" />
+              <p className="text-xl font-black text-gray-300 uppercase tracking-widest">No Assessments Found</p>
             </div>
           )}
         </div>

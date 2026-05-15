@@ -50,7 +50,7 @@ export class AssignmentsQueryService {
   /**
    * Returns assignments for a faculty based on their assignments.
    */
-  async getFacultyAssignments(facultyId: string, query: PaginationQueryDto) {
+  async getFacultyAssignments(facultyId: string, query: any) {
     const { page, limit, skip } = query;
     const { sectionId, subjectId } = query as any;
 
@@ -59,36 +59,49 @@ export class AssignmentsQueryService {
       await this.assignmentsService.syncDraftsForSection(facultyId, sectionId, subjectId);
     }
 
+    const where = {
+      facultyAssignment: { facultyId },
+      status: { not: AssignmentStatus.ARCHIVED },
+      ...(sectionId && { sectionId }),
+      ...(subjectId && { subjectId }),
+    };
+
     const [assignments, total] = await Promise.all([
       this.prisma.assignment.findMany({
-        where: {
-          facultyAssignment: { facultyId },
-          status: { not: AssignmentStatus.ARCHIVED },
-          ...(sectionId && { sectionId }),
-          ...(subjectId && { subjectId }),
-        },
+        where,
         include: {
-          section: { select: { id: true, name: true } },
-          subject: { select: { id: true, name: true, code: true } },
-          _count: {
-            select: { submissions: true },
+          section: {
+            include: {
+              _count: {
+                select: { students: true }
+              }
+            }
           },
+          _count: {
+            select: { submissions: true }
+          }
         },
-        orderBy: { createdAt: 'desc' },
-        take: limit,
+        orderBy: [{ status: 'asc' }, { createdAt: 'desc' }],
         skip,
+        take: limit,
       }),
-      this.prisma.assignment.count({
-        where: {
-          facultyAssignment: { facultyId },
-          status: { not: AssignmentStatus.ARCHIVED },
-          ...(sectionId && { sectionId }),
-          ...(subjectId && { subjectId }),
-        },
-      }),
+      this.prisma.assignment.count({ where }),
     ]);
 
-    return createPaginatedResponse(assignments, total, page || 1, limit || 20);
+    // Calculate missed counts for each assignment
+    const enhancedAssignments = assignments.map(a => {
+      const totalStudents = a.section._count.students;
+      const submissionCount = a._count.submissions;
+      return {
+        ...a,
+        totalStudents,
+        submissionCount,
+        missedCount: Math.max(0, totalStudents - submissionCount),
+        isPastDeadline: new Date() > new Date(a.dueDate)
+      };
+    });
+
+    return createPaginatedResponse(enhancedAssignments, total, page || 1, limit || 20);
   }
 
   /**
@@ -165,13 +178,27 @@ export class AssignmentsQueryService {
       orderBy: { dueDate: 'asc' },
     });
 
-    return assignments.map(a => ({
-      ...a,
-      submissions: a.submissions.map(s => ({
-        ...s,
-        versions: this.mapVersions(s.versions)
-      }))
-    }));
+    return assignments.map(a => {
+      const submission = a.submissions[0];
+      const isPastDeadline = new Date() > new Date(a.dueDate);
+      
+      let displayStatus = 'ONGOING';
+      if (submission) {
+        displayStatus = 'SUBMITTED';
+      } else if (isPastDeadline) {
+        displayStatus = 'MISSED';
+      }
+
+      return {
+        ...a,
+        displayStatus,
+        isPastDeadline,
+        submissions: a.submissions.map(s => ({
+          ...s,
+          versions: this.mapVersions(s.versions)
+        }))
+      };
+    });
   }
 
   /**

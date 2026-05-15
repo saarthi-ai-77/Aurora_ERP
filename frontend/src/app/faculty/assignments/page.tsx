@@ -10,7 +10,7 @@ import { SectionGallery } from "./components/section-gallery";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Loader2, Plus, Search, FileText, ChevronRight, Users, Calendar, Trash2, Archive, ArrowLeft, RefreshCw, Rocket } from "lucide-react";
+import { Loader2, Plus, Search, FileText, ChevronRight, Users, Calendar, Trash2, Archive, ArrowLeft, RefreshCw, Rocket, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { toast } from "react-hot-toast";
 import {
@@ -130,123 +130,172 @@ export default function FacultyAssignmentsPage() {
   // ─── View 2: Section Assignment Manager ──────────────────────────────────
   if (selectedSection) {
     const list = assignments?.data || [];
-    const filtered = list.filter((a: any) => 
-      a.status !== 'ARCHIVED' && 
-      a.title.toLowerCase().includes(searchQuery.toLowerCase())
+    
+    // ─── Triple Zone Grouping ────────────────────────────────────────────────
+    const templates = list.filter((a: any) => a.status === 'DRAFT');
+    const ongoing = list.filter((a: any) => a.status === 'PUBLISHED' && !a.isPastDeadline);
+    const completed = list.filter((a: any) => a.status === 'PUBLISHED' && a.isPastDeadline);
+
+    const renderAssignmentCard = (assignment: any) => (
+      <Card 
+        key={assignment.id} 
+        className={cn(
+          "group cursor-pointer hover:shadow-xl transition-all duration-300 border-2",
+          assignment.status === 'DRAFT' ? "border-amber-100" : "border-transparent"
+        )}
+        onClick={() => setSelectedAssignment(assignment)}
+      >
+        <CardContent className="p-0">
+          <div className="flex h-full">
+            <div className={cn(
+              "w-2 transition-colors",
+              assignment.status === 'DRAFT' ? "bg-amber-400" : 
+              assignment.isPastDeadline ? "bg-gray-400" : "bg-emerald-500"
+            )} />
+            <div className="flex-1 p-5">
+              <div className="flex items-start justify-between mb-4">
+                <div className="space-y-1.5">
+                  <div className="flex items-center gap-2">
+                    <Badge variant={assignment.status === 'DRAFT' ? "outline" : "default"} className={cn(
+                      "font-bold uppercase tracking-wider text-[10px]",
+                      assignment.status === 'DRAFT' ? "text-amber-600 border-amber-200" : 
+                      assignment.isPastDeadline ? "bg-gray-100 text-gray-600" : "bg-emerald-50/50 text-emerald-700 border-emerald-100"
+                    )}>
+                      {assignment.status === 'DRAFT' ? "Pre-saved Template" : assignment.isPastDeadline ? "Deadline Passed" : "Live / Ongoing"}
+                    </Badge>
+                  </div>
+                  <h3 className="text-xl font-black text-gray-900 tracking-tight leading-none group-hover:text-indigo-600 transition-colors">
+                    {assignment.title}
+                  </h3>
+                  <div className="flex items-center gap-4 text-xs font-bold text-gray-500">
+                    <span className="flex items-center gap-1.5">
+                      <Calendar className="w-3.5 h-3.5" /> Due {new Date(assignment.dueDate).toLocaleDateString()}
+                    </span>
+                    <span className="flex items-center gap-1.5 text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded-full">
+                      <Users className="w-3.5 h-3.5" /> {assignment.submissionCount || 0} Submissions
+                    </span>
+                    {assignment.status === 'PUBLISHED' && (
+                      <span className={cn(
+                        "flex items-center gap-1.5 px-2 py-0.5 rounded-full",
+                        (assignment.missedCount || 0) > 0 ? "text-rose-600 bg-rose-50" : "text-emerald-600 bg-emerald-50"
+                      )}>
+                        <X className="w-3.5 h-3.5" /> {assignment.missedCount || 0} Missed
+                      </span>
+                    )}
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-3">
+                  {assignment.status === 'DRAFT' && (
+                    <Button 
+                      className="bg-indigo-600 hover:bg-indigo-700 text-white shadow-md shadow-indigo-100 font-bold" 
+                      size="sm" 
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setAssignmentToPublish(assignment);
+                      }}
+                    >
+                      <Rocket className="w-4 h-4 mr-2" /> Assign Now
+                    </Button>
+                  )}
+                  <Button variant="ghost" size="sm" className="font-bold text-gray-500 hover:text-indigo-600">
+                    Manage <ChevronRight className="w-4 h-4 ml-1" />
+                  </Button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
     );
 
     return (
-      <div className="container mx-auto py-8 space-y-6 animate-in fade-in duration-500">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-4">
-            <Button variant="ghost" onClick={() => setSelectedSection(null)} className="h-10 w-10 p-0 rounded-full">
-              <ArrowLeft className="w-5 h-5" />
+      <div className="container mx-auto py-8 space-y-12 animate-in fade-in duration-500 pb-20">
+        <div className="flex items-center justify-between border-b pb-6">
+          <div className="flex items-center gap-5">
+            <Button 
+              variant="ghost" 
+              onClick={() => setSelectedSection(null)} 
+              className="h-12 w-12 p-0 rounded-2xl bg-gray-50 hover:bg-white hover:shadow-md transition-all"
+            >
+              <ArrowLeft className="w-6 h-6" />
             </Button>
             <div>
-              <h2 className="text-2xl font-extrabold text-gray-900 leading-tight">
+              <h2 className="text-3xl font-black text-gray-900 leading-tight">
                 {selectedSection.subject.name}
               </h2>
-              <p className="text-xs font-medium text-gray-500 uppercase tracking-widest">
-                Section {selectedSection.section.name} • {selectedSection.term.name}
-              </p>
+              <div className="flex items-center gap-3 mt-1">
+                <Badge className="bg-indigo-600 font-bold px-3 py-1">Section {selectedSection.section.name}</Badge>
+                <span className="text-sm font-bold text-gray-400 uppercase tracking-widest">{selectedSection.term.name}</span>
+              </div>
             </div>
           </div>
-          <div className="flex items-center gap-3">
-            <Button 
-              onClick={() => setShowCreateModal(true)}
-              className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold shadow-lg shadow-indigo-100 h-10 px-6 rounded-xl"
-            >
-              <Plus className="w-4 h-4 mr-2" /> New Custom
-            </Button>
+          <Button 
+            onClick={() => setShowCreateModal(true)}
+            className="bg-gray-900 hover:bg-black text-white font-black shadow-xl h-12 px-8 rounded-2xl"
+          >
+            <Plus className="w-5 h-5 mr-2" /> New Custom
+          </Button>
+        </div>
+
+        {/* Zone 1: Templates */}
+        <div className="space-y-6">
+          <div className="flex items-center gap-3 px-2">
+            <div className="p-2 bg-amber-100 rounded-xl">
+              <RefreshCw className="w-5 h-5 text-amber-600" />
+            </div>
+            <div>
+              <h3 className="text-xl font-black text-gray-900 tracking-tight">Permanent Templates</h3>
+              <p className="text-sm font-bold text-gray-400 uppercase tracking-tighter">Use these to spawn new assignment sets</p>
+            </div>
+          </div>
+          <div className="grid grid-cols-1 gap-4">
+            {templates.map(renderAssignmentCard)}
           </div>
         </div>
 
-        {showCreateModal && (
-          <CreateAssignmentModal 
-            onClose={() => setShowCreateModal(false)} 
-            defaultSectionId={selectedSection.section.id}
-            defaultSubjectId={selectedSection.subject.id}
-          />
+        {/* Zone 2: Ongoing */}
+        {ongoing.length > 0 && (
+          <div className="space-y-6">
+            <div className="flex items-center gap-3 px-2">
+              <div className="p-2 bg-emerald-100 rounded-xl">
+                <Rocket className="w-5 h-5 text-emerald-600" />
+              </div>
+              <div>
+                <h3 className="text-xl font-black text-gray-900 tracking-tight">Ongoing Assignments</h3>
+                <p className="text-sm font-bold text-gray-400 uppercase tracking-tighter">Currently live for students</p>
+              </div>
+            </div>
+            <div className="grid grid-cols-1 gap-4">
+              {ongoing.map(renderAssignmentCard)}
+            </div>
+          </div>
         )}
 
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-          <div className="md:col-span-1 space-y-4">
-             <Card className="border shadow-sm sticky top-24">
-              <CardContent className="p-4 space-y-4">
-                <div className="relative">
-                  <Search className="absolute left-3 top-3 w-4 h-4 text-gray-400" />
-                  <input 
-                    className="w-full pl-9 pr-4 py-2 rounded-lg border focus:ring-2 focus:ring-indigo-500 outline-none text-sm"
-                    placeholder="Search in this section..."
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                  />
-                </div>
-                <div className="space-y-1">
-                  <div className="flex justify-between items-center p-2 rounded-lg hover:bg-gray-50 text-sm">
-                    <span className="text-gray-600">Active Assignments</span>
-                    <Badge variant="secondary">{list.filter((a: any) => a.status === 'PUBLISHED').length}</Badge>
-                  </div>
-                  <div className="flex justify-between items-center p-2 rounded-lg hover:bg-gray-50 text-sm">
-                    <span className="text-gray-600">Pending Drafts</span>
-                    <Badge variant="outline">{list.filter((a: any) => a.status === 'DRAFT').length}</Badge>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          </div>
-
-          <div className="md:col-span-3 space-y-4">
-            {filtered.map((assignment: any) => (
-              <Card key={assignment.id} className="group hover:border-indigo-200 hover:shadow-md transition-all cursor-pointer" onClick={() => setSelectedAssignment(assignment)}>
-                <CardContent className="p-0">
-                  <div className="flex items-stretch">
-                    <div className={cn(
-                      "w-1.5",
-                      assignment.status === 'PUBLISHED' ? "bg-green-500" : "bg-amber-400"
-                    )} />
-                    <div className="flex-1 p-6 flex items-center justify-between gap-4">
-                      <div className="space-y-1">
-                        <div className="flex items-center gap-2">
-                          <Badge variant="outline" className="text-[10px] uppercase font-mono">{assignment.status}</Badge>
-                          {assignment.status === 'DRAFT' && <span className="text-[10px] text-amber-600 font-bold uppercase">Pre-saved Draft</span>}
-                        </div>
-                        <h3 className="text-lg font-bold group-hover:text-indigo-600 transition-colors">{assignment.title}</h3>
-                        <div className="flex items-center gap-4 text-xs text-gray-500 pt-1">
-                          <span className="flex items-center gap-1"><Calendar className="w-3 h-3" /> Due {new Date(assignment.dueDate).toLocaleDateString()}</span>
-                          <span className="flex items-center gap-1"><Users className="w-3 h-3" /> {assignment._count?.submissions || 0} Submissions</span>
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-3">
-                        {assignment.status === 'DRAFT' && (
-                          <Button 
-                            className="bg-indigo-600 hover:bg-indigo-700 text-white shadow-md shadow-indigo-100" 
-                            size="sm" 
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setAssignmentToPublish(assignment);
-                            }}
-                          >
-                            <Rocket className="w-4 h-4 mr-2" /> Assign
-                          </Button>
-                        )}
-                        <Button variant="ghost" size="sm" className="group-hover:translate-x-1 transition-transform">
-                          Review <ChevronRight className="w-4 h-4 ml-1" />
-                        </Button>
-                      </div>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
-            {filtered.length === 0 && (
-              <div className="text-center py-12 bg-gray-50 rounded-xl border border-dashed">
-                <FileText className="w-12 h-12 text-gray-300 mx-auto mb-3" />
-                <p className="text-gray-500">No assignments found for this section.</p>
+        {/* Zone 3: Completed */}
+        {completed.length > 0 && (
+          <div className="space-y-6">
+            <div className="flex items-center gap-3 px-2">
+              <div className="p-2 bg-gray-200 rounded-xl">
+                <FileText className="w-5 h-5 text-gray-600" />
               </div>
-            )}
+              <div>
+                <h3 className="text-xl font-black text-gray-900 tracking-tight">Completed / Review Pending</h3>
+                <p className="text-sm font-bold text-gray-400 uppercase tracking-tighter">Deadlines passed — finish your grading here</p>
+              </div>
+            </div>
+            <div className="grid grid-cols-1 gap-4">
+              {completed.map(renderAssignmentCard)}
+            </div>
           </div>
-        </div>
+        )}
+
+        {list.length === 0 && (
+          <div className="text-center py-20 bg-gray-50 rounded-3xl border-4 border-dashed border-gray-100">
+            <FileText className="w-20 h-20 text-gray-200 mx-auto mb-4" />
+            <p className="text-xl font-black text-gray-300 uppercase tracking-widest">Initializing Context...</p>
+          </div>
+        )}
 
         {assignmentToPublish && (
           <PublishAssignmentModal 
