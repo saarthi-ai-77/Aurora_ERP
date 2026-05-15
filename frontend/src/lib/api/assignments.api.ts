@@ -29,6 +29,11 @@ export const assignmentsApi = {
     return response.data;
   },
 
+  extendDeadline: async (id: string, dueDate: string) => {
+    const response = await api.patch<ApiSuccessResponse<any>>(`/assignments/${id}/extend`, { dueDate });
+    return response.data;
+  },
+
   archiveAssignment: async (id: string) => {
     const response = await api.patch<ApiSuccessResponse<any>>(`/assignments/${id}/archive`);
     return response.data;

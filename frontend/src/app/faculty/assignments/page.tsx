@@ -28,6 +28,7 @@ import { PublishAssignmentModal } from "./components/publish-modal";
 
 export default function FacultyAssignmentsPage() {
   const queryClient = useQueryClient();
+  const [activeTab, setActiveTab] = useState<'templates' | 'ongoing' | 'completed'>('templates');
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedSection, setSelectedSection] = useState<any>(null);
   const [selectedAssignment, setSelectedAssignment] = useState<any>(null);
@@ -136,6 +137,11 @@ export default function FacultyAssignmentsPage() {
     const ongoing = list.filter((a: any) => a.status === 'PUBLISHED' && !a.isPastDeadline);
     const completed = list.filter((a: any) => a.status === 'PUBLISHED' && a.isPastDeadline);
 
+    const activeList = activeTab === 'templates' ? templates : activeTab === 'ongoing' ? ongoing : completed;
+    const filtered = activeList.filter((a: any) => 
+      a.title.toLowerCase().includes(searchQuery.toLowerCase())
+    );
+
     const renderAssignmentCard = (assignment: any) => (
       <Card 
         key={assignment.id} 
@@ -210,8 +216,8 @@ export default function FacultyAssignmentsPage() {
     );
 
     return (
-      <div className="container mx-auto py-8 space-y-12 animate-in fade-in duration-500 pb-20">
-        <div className="flex items-center justify-between border-b pb-6">
+      <div className="container mx-auto py-8 space-y-8 animate-in fade-in duration-500 pb-20">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 border-b pb-8">
           <div className="flex items-center gap-5">
             <Button 
               variant="ghost" 
@@ -230,6 +236,37 @@ export default function FacultyAssignmentsPage() {
               </div>
             </div>
           </div>
+
+          <div className="flex bg-gray-100 p-1 rounded-2xl shadow-inner border-2 border-gray-100">
+            <button 
+              onClick={() => setActiveTab('templates')}
+              className={cn(
+                "px-6 py-3 rounded-xl font-black text-xs uppercase tracking-widest transition-all flex items-center gap-2",
+                activeTab === 'templates' ? "bg-white text-amber-600 shadow-md" : "text-gray-400 hover:text-gray-600"
+              )}
+            >
+              Templates <Badge variant="secondary" className="bg-amber-100 text-amber-700">{templates.length}</Badge>
+            </button>
+            <button 
+              onClick={() => setActiveTab('ongoing')}
+              className={cn(
+                "px-6 py-3 rounded-xl font-black text-xs uppercase tracking-widest transition-all flex items-center gap-2",
+                activeTab === 'ongoing' ? "bg-white text-indigo-600 shadow-md" : "text-gray-400 hover:text-gray-600"
+              )}
+            >
+              Ongoing <Badge variant="secondary" className="bg-indigo-100 text-indigo-700">{ongoing.length}</Badge>
+            </button>
+            <button 
+              onClick={() => setActiveTab('completed')}
+              className={cn(
+                "px-6 py-3 rounded-xl font-black text-xs uppercase tracking-widest transition-all flex items-center gap-2",
+                activeTab === 'completed' ? "bg-white text-gray-700 shadow-md" : "text-gray-400 hover:text-gray-600"
+              )}
+            >
+              Completed <Badge variant="secondary" className="bg-gray-200 text-gray-700">{completed.length}</Badge>
+            </button>
+          </div>
+
           <Button 
             onClick={() => setShowCreateModal(true)}
             className="bg-gray-900 hover:bg-black text-white font-black shadow-xl h-12 px-8 rounded-2xl"
@@ -238,64 +275,39 @@ export default function FacultyAssignmentsPage() {
           </Button>
         </div>
 
-        {/* Zone 1: Templates */}
-        <div className="space-y-6">
-          <div className="flex items-center gap-3 px-2">
-            <div className="p-2 bg-amber-100 rounded-xl">
-              <RefreshCw className="w-5 h-5 text-amber-600" />
-            </div>
+        <div className="space-y-8 animate-in slide-in-from-bottom-4 duration-500">
+          <div className="flex items-center justify-between px-2">
             <div>
-              <h3 className="text-xl font-black text-gray-900 tracking-tight">Permanent Templates</h3>
-              <p className="text-sm font-bold text-gray-400 uppercase tracking-tighter">Use these to spawn new assignment sets</p>
+              <h3 className="text-xl font-black text-gray-900 tracking-tight capitalize">
+                {activeTab} {activeTab === 'templates' ? 'Spawner' : 'Assignments'}
+              </h3>
+              <p className="text-xs font-bold text-gray-400 uppercase tracking-tighter">
+                {activeTab === 'templates' ? 'Select a pre-saved template to spawn a new assignment set' : 
+                 activeTab === 'ongoing' ? 'Active tasks currently visible to students' : 
+                 'Review submissions and grade students for past tasks'}
+              </p>
+            </div>
+            <div className="relative w-64 group">
+              <Search className="absolute left-3 top-2.5 w-4 h-4 text-gray-400 group-focus-within:text-indigo-500 transition-colors" />
+              <input 
+                className="w-full pl-9 pr-4 py-2 rounded-xl border-2 border-gray-100 focus:border-indigo-500 outline-none text-sm font-bold shadow-sm"
+                placeholder="Quick search..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+              />
             </div>
           </div>
+
           <div className="grid grid-cols-1 gap-4">
-            {templates.map(renderAssignmentCard)}
+            {filtered.map(renderAssignmentCard)}
+            {filtered.length === 0 && (
+              <div className="text-center py-24 bg-gray-50 rounded-3xl border-4 border-dashed border-gray-100">
+                <FileText className="w-20 h-20 text-gray-200 mx-auto mb-4" />
+                <p className="text-xl font-black text-gray-300 uppercase tracking-widest">No {activeTab} Found</p>
+              </div>
+            )}
           </div>
         </div>
-
-        {/* Zone 2: Ongoing */}
-        {ongoing.length > 0 && (
-          <div className="space-y-6">
-            <div className="flex items-center gap-3 px-2">
-              <div className="p-2 bg-emerald-100 rounded-xl">
-                <Rocket className="w-5 h-5 text-emerald-600" />
-              </div>
-              <div>
-                <h3 className="text-xl font-black text-gray-900 tracking-tight">Ongoing Assignments</h3>
-                <p className="text-sm font-bold text-gray-400 uppercase tracking-tighter">Currently live for students</p>
-              </div>
-            </div>
-            <div className="grid grid-cols-1 gap-4">
-              {ongoing.map(renderAssignmentCard)}
-            </div>
-          </div>
-        )}
-
-        {/* Zone 3: Completed */}
-        {completed.length > 0 && (
-          <div className="space-y-6">
-            <div className="flex items-center gap-3 px-2">
-              <div className="p-2 bg-gray-200 rounded-xl">
-                <FileText className="w-5 h-5 text-gray-600" />
-              </div>
-              <div>
-                <h3 className="text-xl font-black text-gray-900 tracking-tight">Completed / Review Pending</h3>
-                <p className="text-sm font-bold text-gray-400 uppercase tracking-tighter">Deadlines passed — finish your grading here</p>
-              </div>
-            </div>
-            <div className="grid grid-cols-1 gap-4">
-              {completed.map(renderAssignmentCard)}
-            </div>
-          </div>
-        )}
-
-        {list.length === 0 && (
-          <div className="text-center py-20 bg-gray-50 rounded-3xl border-4 border-dashed border-gray-100">
-            <FileText className="w-20 h-20 text-gray-200 mx-auto mb-4" />
-            <p className="text-xl font-black text-gray-300 uppercase tracking-widest">Initializing Context...</p>
-          </div>
-        )}
 
         {assignmentToPublish && (
           <PublishAssignmentModal 

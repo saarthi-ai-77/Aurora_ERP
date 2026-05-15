@@ -78,6 +78,7 @@ export class AssignmentsQueryService {
               }
             }
           },
+          subject: { select: { name: true, code: true } },
           _count: {
             select: { submissions: true }
           }
@@ -107,49 +108,77 @@ export class AssignmentsQueryService {
 
   /**
    * Returns student list and their submission status for an assignment.
+   * Every student in the section is returned, even if they haven't submitted.
    */
-  async getAssignmentSubmissions(
-    assignmentId: string,
-    query: PaginationQueryDto,
-    requester: RequestUser,
-  ) {
+  async getAssignmentSubmissions(assignmentId: string, requester: RequestUser) {
     await this.ensureAssignmentAccess(requester, { assignmentId });
 
-    const { page, limit, skip } = query;
+    const assignment = await this.prisma.assignment.findUnique({
+      where: { id: assignmentId },
+      select: { sectionId: true, termId: true }
+    });
 
-    const [submissions, total] = await Promise.all([
-      this.prisma.assignmentSubmission.findMany({
-        where: { assignmentId },
-        include: {
-          enrollment: {
-            include: {
-              student: {
-                select: {
-                  registrationNumber: true,
-                  firstName: true,
-                  lastName: true,
-                },
-              },
-            },
-          },
-          versions: {
-            orderBy: { versionNumber: 'desc' },
-            take: 1,
-          },
-        },
-        orderBy: { enrollment: { student: { registrationNumber: 'asc' } } },
-        take: limit,
-        skip,
-      }),
-      this.prisma.assignmentSubmission.count({ where: { assignmentId } }),
-    ]);
+    if (!assignment) return { data: [] };
 
-    const mapped = submissions.map(s => ({
-      ...s,
-      versions: this.mapVersions(s.versions)
-    }));
+    // 1. Fetch ALL students enrolled in this section
+    const enrollments = await this.prisma.studentEnrollment.findMany({
+      where: {
+        sectionId: assignment.sectionId,
+        termId: assignment.termId,
+        status: 'ACTIVE',
+      },
+      include: {
+        student: {
+          select: {
+            firstName: true,
+            lastName: true,
+            registrationNumber: true,
+          }
+        }
+      },
+      orderBy: { student: { registrationNumber: 'asc' } }
+    });
 
-    return createPaginatedResponse(mapped, total, page || 1, limit || 20);
+    // 2. Fetch existing submissions
+    const submissions = await this.prisma.assignmentSubmission.findMany({
+      where: { assignmentId },
+      include: {
+        versions: {
+          orderBy: { versionNumber: 'desc' },
+          take: 1,
+        }
+      }
+    });
+
+    // 3. Merge: Every student gets a row
+    const fullList = enrollments.map(enrollment => {
+      const submission = submissions.find(s => s.studentEnrollmentId === enrollment.id);
+      
+      return {
+        id: submission?.id || `pending-${enrollment.id}`,
+        enrollment,
+        gradingStatus: submission?.gradingStatus || 'NOT_SUBMITTED',
+        finalMarks: submission?.finalMarks || null,
+        submittedAt: submission?.submittedAt || null,
+        isLateSubmission: submission?.isLateSubmission || false,
+        versions: submission ? this.mapVersions(submission.versions) : [],
+        latestVersionId: submission?.latestVersionId || null,
+        hasSubmission: !!submission
+      };
+    });
+
+    return { data: fullList };
+  }
+
+  /**
+   * Extends the deadline for a specific assignment.
+   */
+  async extendDeadline(assignmentId: string, newDueDate: Date, requester: RequestUser) {
+    await this.ensureAssignmentAccess(requester, { assignmentId });
+    return this.prisma.assignment.update({
+      where: { id: assignmentId },
+      data: { dueDate: newDueDate }
+    });
   }
 
   /**

@@ -74,6 +74,17 @@ export class AssignmentsController {
     });
   }
 
+  @Patch(':id/extend')
+  @Roles(Role.FACULTY, Role.ADMIN)
+  @UseGuards(AcademicAccessGuard)
+  extendDeadline(
+    @Req() req: any,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body('dueDate') dueDate: string,
+  ) {
+    return this.queryService.extendDeadline(id, new Date(dueDate), req.user);
+  }
+
   @Post('faculty/sync-drafts')
   @Roles(Role.FACULTY)
   syncDrafts(
@@ -115,12 +126,11 @@ export class AssignmentsController {
   @Get(':id/submissions')
   @Roles(Role.FACULTY, Role.ADMIN)
   @UseGuards(AcademicAccessGuard)
-  getSubmissions(
+  getAssignmentSubmissions(
     @Req() req: any,
-    @Param('id', ParseUUIDPipe) id: string,
-    @Query() query: PaginationQueryDto,
+    @Param('id', ParseUUIDPipe) id: string
   ) {
-    return this.queryService.getAssignmentSubmissions(id, query, req.user);
+    return this.queryService.getAssignmentSubmissions(id, req.user);
   }
 
   @Patch('submissions/:id/grade')
