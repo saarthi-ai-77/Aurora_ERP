@@ -71,6 +71,7 @@ export class AssignmentsQueryService {
       this.prisma.assignment.findMany({
         where,
         include: {
+          template: true,
           section: {
             include: {
               _count: {

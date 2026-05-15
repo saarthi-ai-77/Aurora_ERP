@@ -10,7 +10,7 @@ import { SectionGallery } from "./components/section-gallery";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Loader2, Plus, Search, FileText, ChevronRight, Users, Calendar, Trash2, Archive, ArrowLeft, RefreshCw, Rocket, X } from "lucide-react";
+import { Loader2, Plus, Search, FileText, ChevronRight, Users, Calendar, Trash2, Archive, ArrowLeft, RefreshCw, Rocket, X, Clock } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { toast } from "react-hot-toast";
 import {
@@ -38,7 +38,6 @@ export default function FacultyAssignmentsPage() {
   const [assignmentToDelete, setAssignmentToDelete] = useState<string | null>(null);
 
   // ─── Session Role Guard ──────────────────────────────────────────────────
-  // Prevents multi-tab session leakage (e.g., Admin login in another tab)
   const { data: userProfile } = useQuery({
     queryKey: ['me'],
     queryFn: () => authApi.getMe(),
@@ -46,7 +45,7 @@ export default function FacultyAssignmentsPage() {
 
   useEffect(() => {
     if (userProfile?.data && userProfile.data.role !== 'FACULTY') {
-      toast.error("Session Conflict Detected: You are no longer logged in as Faculty.");
+      toast.error("Session Conflict Detected");
       setTimeout(() => window.location.href = '/login', 2000);
     }
   }, [userProfile]);
@@ -57,7 +56,7 @@ export default function FacultyAssignmentsPage() {
     queryFn: () => academicApi.getMyContext(),
   });
 
-  const { data: assignments, isLoading: assignmentsLoading, refetch: refetchAssignments } = useQuery({
+  const { data: assignments, isLoading: assignmentsLoading } = useQuery({
     queryKey: ['faculty-assignments', selectedSection?.section.id, selectedSection?.subject.id],
     queryFn: () => assignmentsApi.getFacultyAssignments({
       sectionId: selectedSection?.section.id,
@@ -72,16 +71,8 @@ export default function FacultyAssignmentsPage() {
       assignmentsApi.publishAssignment(id, dueDate, setNumber),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['faculty-assignments'] });
-      toast.success("Assignment assigned to students");
+      toast.success("Assignment live for students");
       setAssignmentToPublish(null);
-    }
-  });
-
-  const archiveMutation = useMutation({
-    mutationFn: (id: string) => assignmentsApi.archiveAssignment(id),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['faculty-assignments'] });
-      toast.success("Assignment moved to archive");
     }
   });
 
@@ -89,29 +80,24 @@ export default function FacultyAssignmentsPage() {
     mutationFn: (id: string) => assignmentsApi.deleteAssignment(id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['faculty-assignments'] });
-      toast.success("Assignment permanently deleted");
+      toast.success("Assignment removed");
       setAssignmentToDelete(null);
     }
   });
 
   if (contextLoading) return (
     <div className="flex flex-col items-center justify-center min-h-[60vh] gap-4">
-      <Loader2 className="animate-spin w-8 h-8 text-indigo-600" />
-      <p className="text-gray-500 animate-pulse font-medium">Loading your academic workload...</p>
+      <Loader2 className="animate-spin w-8 h-8 text-slate-400" />
+      <p className="text-slate-400 font-bold uppercase tracking-widest text-xs">Syncing Academic Data...</p>
     </div>
   );
 
   const sections = context?.data?.assignments || [];
 
-  // Handle section selection and auto-sync
-  const handleSelectSection = (mapping: any) => {
-    setSelectedSection(mapping);
-  };
-
   // ─── View 1: Submission Review ───────────────────────────────────────────
   if (selectedAssignment) {
     return (
-      <div className="container mx-auto py-8">
+      <div className="container mx-auto py-8 animate-in fade-in duration-500">
         <SubmissionReviewGrid 
           assignment={selectedAssignment} 
           onBack={() => setSelectedAssignment(null)} 
@@ -132,10 +118,13 @@ export default function FacultyAssignmentsPage() {
   if (selectedSection) {
     const list = assignments?.data || [];
     
-    // ─── Triple Zone Grouping ────────────────────────────────────────────────
     const templates = list.filter((a: any) => a.status === 'DRAFT');
-    const ongoing = list.filter((a: any) => a.status === 'PUBLISHED' && !a.isPastDeadline);
-    const completed = list.filter((a: any) => a.status === 'PUBLISHED' && a.isPastDeadline);
+    const ongoing = list.filter((a: any) => 
+      a.status === 'PUBLISHED' && !a.isPastDeadline && !a.template?.isMarkOnly
+    );
+    const completed = list.filter((a: any) => 
+      a.status === 'PUBLISHED' && (a.isPastDeadline || a.template?.isMarkOnly)
+    );
 
     const activeList = activeTab === 'templates' ? templates : activeTab === 'ongoing' ? ongoing : completed;
     const filtered = activeList.filter((a: any) => 
@@ -146,67 +135,71 @@ export default function FacultyAssignmentsPage() {
       <Card 
         key={assignment.id} 
         className={cn(
-          "group cursor-pointer hover:shadow-xl transition-all duration-300 border-2",
-          assignment.status === 'DRAFT' ? "border-amber-100" : "border-transparent"
+          "group cursor-pointer hover:shadow-2xl hover:shadow-slate-200/50 transition-all duration-500 border-2",
+          assignment.status === 'DRAFT' ? "border-slate-100 bg-white" : "border-slate-50 bg-slate-50/20"
         )}
         onClick={() => setSelectedAssignment(assignment)}
       >
         <CardContent className="p-0">
           <div className="flex h-full">
             <div className={cn(
-              "w-2 transition-colors",
-              assignment.status === 'DRAFT' ? "bg-amber-400" : 
-              assignment.isPastDeadline ? "bg-gray-400" : "bg-emerald-500"
+              "w-1.5 transition-all duration-500 group-hover:w-2",
+              assignment.status === 'DRAFT' ? "bg-amber-300" : 
+              (assignment.isPastDeadline || assignment.template?.isMarkOnly) ? "bg-slate-300" : "bg-emerald-400"
             )} />
-            <div className="flex-1 p-5">
-              <div className="flex items-start justify-between mb-4">
-                <div className="space-y-1.5">
+            <div className="flex-1 p-6">
+              <div className="flex items-start justify-between">
+                <div className="space-y-2">
                   <div className="flex items-center gap-2">
-                    <Badge variant={assignment.status === 'DRAFT' ? "outline" : "default"} className={cn(
-                      "font-bold uppercase tracking-wider text-[10px]",
-                      assignment.status === 'DRAFT' ? "text-amber-600 border-amber-200" : 
-                      assignment.isPastDeadline ? "bg-gray-100 text-gray-600" : "bg-emerald-50/50 text-emerald-700 border-emerald-100"
+                    <Badge variant="outline" className={cn(
+                      "font-black uppercase tracking-widest text-[9px] px-2 py-0.5 border-2",
+                      assignment.status === 'DRAFT' ? "text-amber-600 border-amber-100" : 
+                      (assignment.isPastDeadline || assignment.template?.isMarkOnly) ? "text-slate-400 border-slate-100" : "text-emerald-600 border-emerald-100"
                     )}>
-                      {assignment.status === 'DRAFT' ? "Pre-saved Template" : assignment.isPastDeadline ? "Deadline Passed" : "Live / Ongoing"}
+                      {assignment.status === 'DRAFT' ? "Pre-saved Template" : (assignment.isPastDeadline || assignment.template?.isMarkOnly) ? "Grading Zone" : "Ongoing Task"}
                     </Badge>
+                    {assignment.template?.isMarkOnly && (
+                      <Badge className="bg-blue-50 text-blue-600 border-blue-100 text-[9px] font-black uppercase tracking-widest px-2 border-2">Direct Grade</Badge>
+                    )}
                   </div>
-                  <h3 className="text-xl font-black text-gray-900 tracking-tight leading-none group-hover:text-indigo-600 transition-colors">
+                  <h3 className="text-xl font-black text-slate-800 tracking-tight leading-none group-hover:text-blue-600 transition-colors">
                     {assignment.title}
                   </h3>
-                  <div className="flex items-center gap-4 text-xs font-bold text-gray-500">
-                    <span className="flex items-center gap-1.5">
-                      <Calendar className="w-3.5 h-3.5" /> Due {new Date(assignment.dueDate).toLocaleDateString()}
+                  <div className="flex items-center gap-6 text-[11px] font-black text-slate-400">
+                    <span className="flex items-center gap-2">
+                      <Calendar className="w-4 h-4 text-slate-300" /> 
+                      {assignment.template?.isMarkOnly ? "Marks Entry" : `Due ${new Date(assignment.dueDate).toLocaleDateString()}`}
                     </span>
-                    <span className="flex items-center gap-1.5 text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded-full">
-                      <Users className="w-3.5 h-3.5" /> {assignment.submissionCount || 0} Submissions
+                    <span className="flex items-center gap-2 text-blue-600/60">
+                      <Users className="w-4 h-4" /> {assignment.submissionCount || 0} Submissions
                     </span>
-                    {assignment.status === 'PUBLISHED' && (
+                    {assignment.status === 'PUBLISHED' && !assignment.template?.isMarkOnly && (
                       <span className={cn(
-                        "flex items-center gap-1.5 px-2 py-0.5 rounded-full",
-                        (assignment.missedCount || 0) > 0 ? "text-rose-600 bg-rose-50" : "text-emerald-600 bg-emerald-50"
+                        "flex items-center gap-2",
+                        (assignment.missedCount || 0) > 0 ? "text-rose-500" : "text-emerald-500"
                       )}>
-                        <X className="w-3.5 h-3.5" /> {assignment.missedCount || 0} Missed
+                        <X className="w-4 h-4" /> {assignment.missedCount || 0} Missed
                       </span>
                     )}
                   </div>
                 </div>
 
-                <div className="flex items-center gap-3">
+                <div className="flex items-center gap-4">
                   {assignment.status === 'DRAFT' && (
                     <Button 
-                      className="bg-indigo-600 hover:bg-indigo-700 text-white shadow-md shadow-indigo-100 font-bold" 
-                      size="sm" 
+                      className="bg-slate-900 hover:bg-black text-white font-black h-10 px-6 rounded-xl transition-all" 
                       onClick={(e) => {
                         e.stopPropagation();
                         setAssignmentToPublish(assignment);
                       }}
                     >
-                      <Rocket className="w-4 h-4 mr-2" /> Assign Now
+                      <Rocket className="w-4 h-4 mr-2" /> 
+                      {assignment.template?.isMarkOnly ? "Direct Publish" : "Assign Now"}
                     </Button>
                   )}
-                  <Button variant="ghost" size="sm" className="font-bold text-gray-500 hover:text-indigo-600">
-                    Manage <ChevronRight className="w-4 h-4 ml-1" />
-                  </Button>
+                  <div className="p-2 rounded-xl bg-slate-50 text-slate-300 group-hover:bg-blue-50 group-hover:text-blue-600 transition-all">
+                    <ChevronRight className="w-5 h-5" />
+                  </div>
                 </div>
               </div>
             </div>
@@ -218,80 +211,72 @@ export default function FacultyAssignmentsPage() {
     return (
       <div className="container mx-auto py-8 space-y-8 animate-in fade-in duration-500 pb-20">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 border-b pb-8">
-          <div className="flex items-center gap-5">
+          <div className="flex items-center gap-6">
             <Button 
               variant="ghost" 
               onClick={() => setSelectedSection(null)} 
-              className="h-12 w-12 p-0 rounded-2xl bg-gray-50 hover:bg-white hover:shadow-md transition-all"
+              className="h-12 w-12 p-0 rounded-2xl bg-slate-50 hover:bg-white hover:shadow-md transition-all border-2 border-transparent hover:border-slate-100"
             >
-              <ArrowLeft className="w-6 h-6" />
+              <ArrowLeft className="w-6 h-6 text-slate-600" />
             </Button>
             <div>
-              <h2 className="text-3xl font-black text-gray-900 leading-tight">
+              <h2 className="text-3xl font-black text-slate-900 leading-tight">
                 {selectedSection.subject.name}
               </h2>
               <div className="flex items-center gap-3 mt-1">
-                <Badge className="bg-indigo-600 font-bold px-3 py-1">Section {selectedSection.section.name}</Badge>
-                <span className="text-sm font-bold text-gray-400 uppercase tracking-widest">{selectedSection.term.name}</span>
+                <Badge className="bg-slate-900 text-white font-black px-3 py-1">Section {selectedSection.section.name}</Badge>
+                <span className="text-xs font-black text-slate-400 uppercase tracking-[0.2em]">{selectedSection.term.name}</span>
               </div>
             </div>
           </div>
 
-          <div className="flex bg-gray-100 p-1 rounded-2xl shadow-inner border-2 border-gray-100">
-            <button 
-              onClick={() => setActiveTab('templates')}
-              className={cn(
-                "px-6 py-3 rounded-xl font-black text-xs uppercase tracking-widest transition-all flex items-center gap-2",
-                activeTab === 'templates' ? "bg-white text-amber-600 shadow-md" : "text-gray-400 hover:text-gray-600"
-              )}
-            >
-              Templates <Badge variant="secondary" className="bg-amber-100 text-amber-700">{templates.length}</Badge>
-            </button>
-            <button 
-              onClick={() => setActiveTab('ongoing')}
-              className={cn(
-                "px-6 py-3 rounded-xl font-black text-xs uppercase tracking-widest transition-all flex items-center gap-2",
-                activeTab === 'ongoing' ? "bg-white text-indigo-600 shadow-md" : "text-gray-400 hover:text-gray-600"
-              )}
-            >
-              Ongoing <Badge variant="secondary" className="bg-indigo-100 text-indigo-700">{ongoing.length}</Badge>
-            </button>
-            <button 
-              onClick={() => setActiveTab('completed')}
-              className={cn(
-                "px-6 py-3 rounded-xl font-black text-xs uppercase tracking-widest transition-all flex items-center gap-2",
-                activeTab === 'completed' ? "bg-white text-gray-700 shadow-md" : "text-gray-400 hover:text-gray-600"
-              )}
-            >
-              Completed <Badge variant="secondary" className="bg-gray-200 text-gray-700">{completed.length}</Badge>
-            </button>
+          <div className="flex bg-slate-50 p-1 rounded-2xl border-2 border-slate-100">
+            {[
+              { id: 'templates', label: 'Templates', count: templates.length, color: 'text-amber-600', bg: 'bg-amber-50' },
+              { id: 'ongoing', label: 'Ongoing', count: ongoing.length, color: 'text-emerald-600', bg: 'bg-emerald-50' },
+              { id: 'completed', label: 'Completed', count: completed.length, color: 'text-slate-600', bg: 'bg-slate-100' }
+            ].map(tab => (
+              <button 
+                key={tab.id}
+                onClick={() => setActiveTab(tab.id as any)}
+                className={cn(
+                  "px-6 py-2.5 rounded-xl font-black text-[10px] uppercase tracking-widest transition-all flex items-center gap-3",
+                  activeTab === tab.id ? "bg-white text-slate-900 shadow-sm border border-slate-100" : "text-slate-400 hover:text-slate-600"
+                )}
+              >
+                {tab.label} 
+                <Badge variant="secondary" className={cn("font-black px-1.5 min-w-[20px] justify-center", activeTab === tab.id ? tab.bg + " " + tab.color : "bg-slate-200 text-slate-500")}>
+                  {tab.count}
+                </Badge>
+              </button>
+            ))}
           </div>
 
           <Button 
             onClick={() => setShowCreateModal(true)}
-            className="bg-gray-900 hover:bg-black text-white font-black shadow-xl h-12 px-8 rounded-2xl"
+            className="bg-blue-600 hover:bg-blue-700 text-white font-black shadow-xl shadow-blue-100 h-12 px-8 rounded-2xl"
           >
-            <Plus className="w-5 h-5 mr-2" /> New Custom
+            <Plus className="w-5 h-5 mr-2" /> New Task
           </Button>
         </div>
 
-        <div className="space-y-8 animate-in slide-in-from-bottom-4 duration-500">
+        <div className="space-y-6">
           <div className="flex items-center justify-between px-2">
             <div>
-              <h3 className="text-xl font-black text-gray-900 tracking-tight capitalize">
-                {activeTab} {activeTab === 'templates' ? 'Spawner' : 'Assignments'}
+              <h3 className="text-xl font-black text-slate-900 tracking-tight capitalize">
+                {activeTab} {activeTab === 'templates' ? 'Manager' : 'Workflow'}
               </h3>
-              <p className="text-xs font-bold text-gray-400 uppercase tracking-tighter">
+              <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
                 {activeTab === 'templates' ? 'Select a pre-saved template to spawn a new assignment set' : 
-                 activeTab === 'ongoing' ? 'Active tasks currently visible to students' : 
-                 'Review submissions and grade students for past tasks'}
+                 activeTab === 'ongoing' ? 'Tasks currently visible in student dashboard' : 
+                 'Deadlines passed or marks-only tasks ready for final grading'}
               </p>
             </div>
-            <div className="relative w-64 group">
-              <Search className="absolute left-3 top-2.5 w-4 h-4 text-gray-400 group-focus-within:text-indigo-500 transition-colors" />
+            <div className="relative w-72 group">
+              <Search className="absolute left-4 top-3 w-4 h-4 text-slate-300 group-focus-within:text-blue-500 transition-colors" />
               <input 
-                className="w-full pl-9 pr-4 py-2 rounded-xl border-2 border-gray-100 focus:border-indigo-500 outline-none text-sm font-bold shadow-sm"
-                placeholder="Quick search..."
+                className="w-full pl-10 pr-4 py-2.5 rounded-2xl border-2 border-slate-100 focus:border-blue-500 outline-none text-xs font-black shadow-sm transition-all"
+                placeholder="Search by title..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
               />
@@ -301,9 +286,9 @@ export default function FacultyAssignmentsPage() {
           <div className="grid grid-cols-1 gap-4">
             {filtered.map(renderAssignmentCard)}
             {filtered.length === 0 && (
-              <div className="text-center py-24 bg-gray-50 rounded-3xl border-4 border-dashed border-gray-100">
-                <FileText className="w-20 h-20 text-gray-200 mx-auto mb-4" />
-                <p className="text-xl font-black text-gray-300 uppercase tracking-widest">No {activeTab} Found</p>
+              <div className="text-center py-32 bg-slate-50/50 rounded-[2rem] border-4 border-dashed border-slate-100">
+                <FileText className="w-16 h-16 text-slate-200 mx-auto mb-4" />
+                <p className="text-sm font-black text-slate-300 uppercase tracking-widest">Empty Workspace</p>
               </div>
             )}
           </div>
@@ -321,35 +306,32 @@ export default function FacultyAssignmentsPage() {
     );
   }
 
-  // ─── View 3: Section Gallery (Initial Landing) ───────────────────────────
   return (
-    <div className="container mx-auto py-8 space-y-8 animate-in fade-in duration-500">
-      <div className="space-y-2">
-        <h1 className="text-3xl font-extrabold tracking-tight">Assignment Manager</h1>
-        <p className="text-gray-500 text-lg">Select a section to manage academic submissions and pre-saved drafts.</p>
+    <div className="container mx-auto py-8 space-y-12 animate-in fade-in duration-500">
+      <div className="space-y-3">
+        <h1 className="text-4xl font-black tracking-tight text-slate-900">Faculty Hub</h1>
+        <p className="text-slate-500 font-bold text-lg max-w-2xl">Select a section to manage assignments, track student submissions, and perform direct grading.</p>
       </div>
 
       <SectionGallery 
         sections={sections} 
-        onSelect={handleSelectSection} 
+        onSelect={(mapping) => setSelectedSection(mapping)} 
       />
 
       <AlertDialog open={!!assignmentToDelete} onOpenChange={() => setAssignmentToDelete(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+            <AlertDialogTitle>Archive Assignment?</AlertDialogTitle>
             <AlertDialogDescription>
-              This will permanently delete the assignment and all associated student submissions.
-              This action cannot be undone.
+              This will hide the assignment and its submissions from students.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel onClick={() => setAssignmentToDelete(null)}>Cancel</AlertDialogCancel>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
             <AlertDialogAction 
               onClick={() => assignmentToDelete && deleteMutation.mutate(assignmentToDelete)}
-              className="bg-red-600 hover:bg-red-700"
             >
-              {deleteMutation.isPending ? "Deleting..." : "Delete Assignment"}
+              {deleteMutation.isPending ? "Archiving..." : "Confirm Archive"}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

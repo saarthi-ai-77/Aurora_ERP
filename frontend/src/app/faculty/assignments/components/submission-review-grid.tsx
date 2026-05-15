@@ -41,108 +41,123 @@ export function SubmissionReviewGrid({ assignment, onBack, onReviewStudent }: Pr
 
   return (
     <div className="space-y-8 animate-in slide-in-from-right duration-300 pb-20">
-      <div className="flex flex-col md:flex-row md:items-center justify-between bg-white p-6 rounded-3xl shadow-xl shadow-gray-100/50 border-2 border-gray-50 gap-6">
-        <div className="flex items-center gap-6">
+      <div className="flex flex-col md:flex-row md:items-center justify-between bg-white p-8 rounded-[2rem] shadow-xl shadow-slate-200/40 border-2 border-slate-50 gap-6">
+        <div className="flex items-center gap-8">
           <Button 
             variant="ghost" 
             size="icon" 
             onClick={onBack}
-            className="h-12 w-12 rounded-2xl bg-gray-50 hover:bg-white hover:shadow-md transition-all"
+            className="h-14 w-14 rounded-2xl bg-slate-50 hover:bg-white hover:shadow-lg transition-all border-2 border-transparent hover:border-slate-100"
           >
-            <ArrowLeft className="w-6 h-6 text-gray-600" />
+            <ArrowLeft className="w-8 h-8 text-slate-500" />
           </Button>
-          <div>
-            <h2 className="text-2xl font-black text-gray-900 tracking-tight">{assignment?.title}</h2>
-            <div className="flex items-center gap-3 mt-1">
-              <Badge variant="outline" className="font-bold text-indigo-600 border-indigo-100 bg-indigo-50/50">
+          <div className="space-y-1">
+            <div className="flex items-center gap-3">
+              <h2 className="text-3xl font-black text-slate-900 tracking-tight">{assignment?.title}</h2>
+              {assignment?.template?.isMarkOnly && (
+                <Badge className="bg-blue-50 text-blue-600 border-blue-100 font-black uppercase tracking-widest text-[10px] px-3 border-2">Direct Grade Mode</Badge>
+              )}
+            </div>
+            <div className="flex items-center gap-4">
+              <Badge variant="outline" className="font-black text-slate-400 border-slate-100 bg-slate-50/50 uppercase tracking-widest text-[9px] px-2 py-0.5">
                 {assignment?.subject?.name}
               </Badge>
-              <span className="text-xs font-bold text-gray-400 uppercase tracking-widest">Section {assignment?.section?.name}</span>
+              <span className="text-[10px] font-black text-slate-300 uppercase tracking-[0.2em]">Section {assignment?.section?.name}</span>
             </div>
           </div>
         </div>
         
-        <div className="flex items-center gap-4">
-          <div className="text-right pr-6 border-r-2 border-gray-100">
-            <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Total Students</p>
-            <p className="text-2xl font-black text-gray-900">{list.length}</p>
+        <div className="flex items-center gap-6">
+          <div className="text-right pr-8 border-r-2 border-slate-100">
+            <p className="text-[10px] font-black text-slate-300 uppercase tracking-widest mb-1">Roster Size</p>
+            <p className="text-3xl font-black text-slate-900 leading-none">{list.length}</p>
           </div>
-          <Button 
-            onClick={() => {
-              const newDate = prompt("Enter new deadline (YYYY-MM-DD):", new Date(assignment.dueDate).toISOString().split('T')[0]);
-              if (newDate) extendMutation.mutate(newDate);
-            }}
-            className="bg-indigo-600 hover:bg-indigo-700 text-white font-black h-12 px-8 rounded-2xl shadow-lg shadow-indigo-100"
-          >
-            <Clock className="w-5 h-5 mr-2" /> Extend Deadline
-          </Button>
+          {!assignment?.template?.isMarkOnly && (
+            <Button 
+              onClick={() => {
+                const newDate = prompt("Enter extension date (YYYY-MM-DD):", new Date(assignment.dueDate).toISOString().split('T')[0]);
+                if (newDate) extendMutation.mutate(newDate);
+              }}
+              className="bg-slate-900 hover:bg-black text-white font-black h-12 px-8 rounded-2xl shadow-xl shadow-slate-100 transition-all hover:scale-105"
+            >
+              <Clock className="w-5 h-5 mr-2" /> Extend Deadline
+            </Button>
+          )}
         </div>
       </div>
 
-      <div className="bg-white rounded-3xl border-2 border-gray-50 shadow-2xl shadow-gray-100/30 overflow-hidden">
+      <div className="bg-white rounded-[2.5rem] border-2 border-slate-100 shadow-2xl shadow-slate-200/20 overflow-hidden">
         <Table>
           <TableHeader>
-            <TableRow className="bg-gray-50/50 hover:bg-gray-50/50 border-b-2 border-gray-50">
-              <TableHead className="w-32 font-black uppercase text-[10px] tracking-widest p-6 text-gray-500">Reg No.</TableHead>
-              <TableHead className="font-black uppercase text-[10px] tracking-widest p-6 text-gray-500">Student Name</TableHead>
-              <TableHead className="font-black uppercase text-[10px] tracking-widest p-6 text-gray-500">Status</TableHead>
-              <TableHead className="font-black uppercase text-[10px] tracking-widest p-6 text-gray-500">Submission Details</TableHead>
-              <TableHead className="font-black uppercase text-[10px] tracking-widest p-6 text-gray-500 text-center">Marks</TableHead>
-              <TableHead className="text-right font-black uppercase text-[10px] tracking-widest p-6 text-gray-500">Action</TableHead>
+            <TableRow className="bg-slate-50/50 hover:bg-slate-50/50 border-b-2 border-slate-100">
+              <TableHead className="w-40 font-black uppercase text-[10px] tracking-widest p-8 text-slate-400">Student ID</TableHead>
+              <TableHead className="font-black uppercase text-[10px] tracking-widest p-8 text-slate-400">Full Name</TableHead>
+              <TableHead className="font-black uppercase text-[10px] tracking-widest p-8 text-slate-400">Status</TableHead>
+              <TableHead className="font-black uppercase text-[10px] tracking-widest p-8 text-slate-400">Submission Details</TableHead>
+              <TableHead className="font-black uppercase text-[10px] tracking-widest p-8 text-slate-400 text-center">Marks Obtained</TableHead>
+              <TableHead className="text-right font-black uppercase text-[10px] tracking-widest p-8 text-slate-400">Action</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {list.map((submission: any) => (
-              <TableRow key={submission.id} className="hover:bg-indigo-50/20 transition-colors border-b border-gray-50 group">
-                <TableCell className="p-6 font-black text-gray-500 text-xs">{submission.enrollment.student.registrationNumber}</TableCell>
-                <TableCell className="p-6">
-                  <p className="font-black text-gray-900 leading-none">
+              <TableRow key={submission.id} className="hover:bg-slate-50/50 transition-all border-b border-slate-50 group">
+                <TableCell className="p-8 font-black text-slate-400 text-xs tracking-widest">{submission.enrollment.student.registrationNumber}</TableCell>
+                <TableCell className="p-8">
+                  <p className="font-black text-slate-800 leading-none group-hover:text-blue-600 transition-colors">
                     {submission.enrollment.student.firstName} {submission.enrollment.student.lastName}
                   </p>
                 </TableCell>
-                <TableCell className="p-6">
+                <TableCell className="p-8">
                   <GradingStatusBadge 
                     status={submission.gradingStatus} 
                     isLate={submission.isLateSubmission} 
                   />
                 </TableCell>
-                <TableCell className="p-6">
+                <TableCell className="p-8">
                   {submission.hasSubmission ? (
                     <div className="flex items-center gap-3">
-                      <div className="p-2 bg-indigo-50 rounded-lg">
-                        <FileText className="w-4 h-4 text-indigo-600" />
+                      <div className="p-2.5 bg-slate-100 rounded-xl group-hover:bg-blue-50 transition-colors">
+                        <FileText className="w-5 h-5 text-slate-400 group-hover:text-blue-500" />
                       </div>
                       <div>
-                        <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest leading-none mb-1">Latest Upload</p>
-                        <p className="text-xs font-bold text-gray-700">v{submission.versions?.[0]?.versionNumber} - {new Date(submission.submittedAt).toLocaleDateString()}</p>
+                        <p className="text-[10px] font-black text-slate-300 uppercase tracking-widest leading-none mb-1">Version v{submission.versions?.[0]?.versionNumber}</p>
+                        <p className="text-xs font-black text-slate-600">{new Date(submission.submittedAt).toLocaleDateString()}</p>
                       </div>
+                    </div>
+                  ) : assignment?.template?.isMarkOnly ? (
+                    <div className="flex items-center gap-3 text-slate-300">
+                      <CheckCircle className="w-5 h-5" />
+                      <span className="text-[10px] font-black uppercase tracking-widest">Entry Only</span>
                     </div>
                   ) : (
                     <div className="flex items-center gap-3 text-rose-300">
-                      <AlertTriangle className="w-4 h-4" />
-                      <span className="text-xs font-black uppercase tracking-widest">No Submission</span>
+                      <AlertTriangle className="w-5 h-5" />
+                      <span className="text-[10px] font-black uppercase tracking-widest">Awaiting File</span>
                     </div>
                   )}
                 </TableCell>
-                <TableCell className="p-6 text-center">
+                <TableCell className="p-8 text-center">
                   {submission.finalMarks !== null ? (
-                    <Badge className="bg-emerald-50 text-emerald-700 border-emerald-100 font-black px-3 py-1">
-                      {submission.finalMarks}/{assignment.maxMarks}
+                    <Badge className="bg-emerald-50 text-emerald-600 border-emerald-100 font-black px-4 py-1.5 border-2 rounded-xl">
+                      {submission.finalMarks} / {assignment.maxMarks}
                     </Badge>
                   ) : (
-                    <span className="text-gray-300 font-black">-</span>
+                    <span className="text-slate-200 font-black tracking-widest">- / -</span>
                   )}
                 </TableCell>
-                <TableCell className="p-6 text-right">
+                <TableCell className="p-8 text-right">
                   <Button 
                     variant="ghost" 
                     className={cn(
-                      "font-black text-xs uppercase tracking-widest",
-                      submission.hasSubmission ? "text-indigo-600 hover:bg-indigo-50" : "text-gray-300 pointer-events-none"
+                      "font-black text-[10px] uppercase tracking-widest h-10 px-6 rounded-xl transition-all",
+                      (submission.hasSubmission || assignment?.template?.isMarkOnly) 
+                        ? "bg-slate-50 text-slate-600 hover:bg-blue-600 hover:text-white" 
+                        : "bg-slate-50 text-slate-200 pointer-events-none"
                     )}
                     onClick={() => onReviewStudent(submission)}
                   >
-                    <Eye className="w-4 h-4 mr-2" /> Review
+                    <Eye className="w-4 h-4 mr-2" /> 
+                    {assignment?.template?.isMarkOnly ? "Enter Marks" : "Review"}
                   </Button>
                 </TableCell>
               </TableRow>
