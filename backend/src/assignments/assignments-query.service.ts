@@ -4,6 +4,7 @@ import { AcademicContextService } from '../academic/academic-context.service';
 import { StorageService } from '../common/storage/storage.service';
 import { AssignmentStatus, GradingStatus, Role } from '@prisma/client';
 import { PaginationQueryDto, createPaginatedResponse } from '../common/dto/pagination.dto';
+import { FacultyAssignmentsQueryDto } from './dto/assignments.dto';
 
 import { AssignmentsService } from './assignments.service';
 
@@ -50,7 +51,7 @@ export class AssignmentsQueryService {
   /**
    * Returns assignments for a faculty based on their assignments.
    */
-  async getFacultyAssignments(facultyId: string, query: any) {
+  async getFacultyAssignments(facultyId: string, query: FacultyAssignmentsQueryDto) {
     const { page, limit, skip } = query;
     const { sectionId, subjectId } = query as any;
 
@@ -73,7 +74,7 @@ export class AssignmentsQueryService {
           section: {
             include: {
               _count: {
-                select: { students: true }
+                select: { studentEnrollments: true }
               }
             }
           },
@@ -90,7 +91,7 @@ export class AssignmentsQueryService {
 
     // Calculate missed counts for each assignment
     const enhancedAssignments = assignments.map(a => {
-      const totalStudents = a.section._count.students;
+      const totalStudents = a.section._count.studentEnrollments;
       const submissionCount = a._count.submissions;
       return {
         ...a,
@@ -101,7 +102,7 @@ export class AssignmentsQueryService {
       };
     });
 
-    return createPaginatedResponse(enhancedAssignments, total, page || 1, limit || 20);
+    return createPaginatedResponse(enhancedAssignments, total, page, limit);
   }
 
   /**
