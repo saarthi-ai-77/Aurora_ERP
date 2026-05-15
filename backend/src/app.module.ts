@@ -42,6 +42,8 @@ const redisEnabled = process.env.REDIS_ENABLED !== 'false';
         REDIS_HOST: Joi.string().default('localhost'),
         REDIS_PORT: Joi.number().default(6379),
         STORAGE_PROVIDER: Joi.string().valid('local', 'supabase', 'r2').default('local'),
+        SUPABASE_URL: Joi.string().when('STORAGE_PROVIDER', { is: 'supabase', then: Joi.required() }),
+        SUPABASE_SERVICE_ROLE_KEY: Joi.string().when('STORAGE_PROVIDER', { is: 'supabase', then: Joi.required() }),
         R2_ACCOUNT_ID: Joi.string().when('STORAGE_PROVIDER', { is: 'r2', then: Joi.required() }),
         R2_ACCESS_KEY_ID: Joi.string().when('STORAGE_PROVIDER', { is: 'r2', then: Joi.required() }),
         R2_SECRET_ACCESS_KEY: Joi.string().when('STORAGE_PROVIDER', { is: 'r2', then: Joi.required() }),
