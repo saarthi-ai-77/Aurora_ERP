@@ -14,16 +14,12 @@ interface Props {
   onClose: () => void;
 }
 
-// Normalizes storageKey URLs — strips localhost origin so the Vercel proxy handles routing.
-// Files uploaded from local dev get stored as absolute http://localhost:PORT/... URLs.
+// Normalizes storageKey URLs — strips absolute origin so the Vercel proxy handles routing and attaches cookies.
 function resolveFileUrl(storageKey: string | null | undefined): string | null {
   if (!storageKey || storageKey === "marks-only") return null;
   try {
     const url = new URL(storageKey);
-    if (url.hostname === "localhost" || url.hostname === "127.0.0.1") {
-      return url.pathname;
-    }
-    return storageKey;
+    return url.pathname;
   } catch {
     return storageKey; // already a relative path like /api/v1/storage/...
   }

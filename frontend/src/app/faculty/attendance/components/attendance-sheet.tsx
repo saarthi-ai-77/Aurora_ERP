@@ -60,7 +60,6 @@ export function AttendanceSheet({ assignment, onBack }: Props) {
       if (sessionData?.id) {
         queryClient.invalidateQueries({ queryKey: ['session-details', sessionData.id] });
       }
-      toast.success("Attendance updated");
     }
   });
 

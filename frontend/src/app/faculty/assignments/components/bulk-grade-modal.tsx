@@ -33,7 +33,7 @@ export function BulkGradeModal({ isOpen, onClose, template, sectionId, subjectId
   const fetchStudents = async () => {
     try {
       setIsLoading(true);
-      const response = await academicApi.getSectionStudents(sectionId, { limit: 200 });
+      const response = await academicApi.getSectionStudents(sectionId, { limit: 100 });
       // Ensure we handle the potentially wrapped data correctly
       const studentList = Array.isArray(response) ? response : (response as any).data || [];
       setStudents(studentList);

@@ -20,7 +20,14 @@ export default function RootLayout({
       <body className="font-sans antialiased">
         <Providers>
           {children}
-          <Toaster position="bottom-right" />
+          <Toaster 
+            position="bottom-right" 
+            toastOptions={{ 
+              duration: 3000,
+              success: { duration: 3000 },
+              error: { duration: 4000 },
+            }} 
+          />
         </Providers>
       </body>
     </html>
