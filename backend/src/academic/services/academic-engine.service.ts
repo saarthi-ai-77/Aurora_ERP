@@ -213,25 +213,35 @@ export class AcademicEngineService {
 
   async getSectionStudents(sectionId: string, query: PaginationQueryDto) {
     const { page, limit, skip } = query;
+    console.log(`[DIAG] getSectionStudents sectionId=${sectionId}`);
 
-    const [students, total] = await Promise.all([
-      this.prisma.studentProfile.findMany({
+    const [enrollments, total] = await Promise.all([
+      this.prisma.studentEnrollment.findMany({
         where: { sectionId },
         take: limit,
         skip,
-        orderBy: [{ lastName: 'asc' }, { firstName: 'asc' }],
-        select: {
-          id: true,
-          firstName: true,
-          lastName: true,
-          registrationNumber: true,
-          academicStatus: true,
+        orderBy: { student: { lastName: 'asc' } },
+        include: {
+          student: {
+            select: {
+              firstName: true,
+              lastName: true,
+              registrationNumber: true,
+            },
+          },
         },
       }),
-      this.prisma.studentProfile.count({ where: { sectionId } }),
+      this.prisma.studentEnrollment.count({ where: { sectionId } }),
     ]);
 
-    return createPaginatedResponse(students, total, page || 1, limit || 20);
+    const formatted = enrollments.map((e) => ({
+      id: e.id,
+      status: e.status,
+      student: e.student,
+    }));
+
+    console.log(`[DIAG] getSectionStudents found=${enrollments.length} total=${total}`);
+    return createPaginatedResponse(formatted, total, page || 1, limit || 20);
   }
 
   // ─── Section-Subject Mapping ──────────────────────────────────────────────────

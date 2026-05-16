@@ -44,13 +44,15 @@ export const assignmentsApi = {
     return response.data;
   },
 
-  getFacultyAssignments: async (params?: { 
-    limit?: number; 
-    offset?: number; 
-    sectionId?: string; 
-    subjectId?: string 
+  getFacultyAssignments: async (params?: {
+    limit?: number;
+    offset?: number;
+    sectionId?: string;
+    subjectId?: string
   }) => {
-    const response = await api.get<ApiSuccessResponse<any[]>>("/assignments/faculty/me", { params });
+    const response = await api.get<ApiSuccessResponse<any[]>>("/assignments/faculty/me", {
+      params: { limit: 100, ...params },
+    });
     return response.data;
   },
 
@@ -99,6 +101,22 @@ export const assignmentsApi = {
 
   getAssignmentStats: async (id: string) => {
     const response = await api.get<ApiSuccessResponse<any>>(`/assignments/${id}/stats`);
+    return response.data;
+  },
+
+  bulkGradeAndPublish: async (data: {
+    templateId: string;
+    sectionId: string;
+    subjectId: string;
+    title: string;
+    maxMarks: number;
+    grades: {
+      studentEnrollmentId: string;
+      marks: number;
+      feedback?: string;
+    }[];
+  }) => {
+    const response = await api.post<ApiSuccessResponse<any>>("/assignments/bulk-grade", data);
     return response.data;
   },
 };

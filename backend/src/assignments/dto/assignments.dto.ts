@@ -80,3 +80,36 @@ export class FacultyAssignmentsQueryDto extends PaginationQueryDto {
   @IsUUID()
   subjectId?: string;
 }
+
+export class GradeEntryDto {
+  @IsUUID()
+  studentEnrollmentId: string;
+
+  @IsNumber()
+  @Min(0)
+  marks: number;
+
+  @IsOptional()
+  @IsString()
+  feedback?: string;
+}
+
+export class BulkGradeDto {
+  @IsUUID()
+  templateId: string;
+
+  @IsUUID()
+  sectionId: string;
+
+  @IsUUID()
+  subjectId: string;
+
+  @IsString()
+  title: string;
+
+  @IsNumber()
+  maxMarks: number;
+
+  @Type(() => GradeEntryDto)
+  grades: GradeEntryDto[];
+}

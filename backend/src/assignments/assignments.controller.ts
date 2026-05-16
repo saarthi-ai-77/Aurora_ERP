@@ -29,6 +29,7 @@ import {
   CreateAssignmentDto,
   GradeSubmissionDto,
   FacultyAssignmentsQueryDto,
+  BulkGradeDto,
 } from './dto/assignments.dto';
 import { PaginationQueryDto } from '../common/dto/pagination.dto';
 
@@ -42,6 +43,17 @@ export class AssignmentsController {
   ) {}
 
   // ─── Faculty Endpoints ──────────────────────────────────────────────────
+
+  @Post('bulk-grade')
+  @Roles(Role.FACULTY)
+  @UseInterceptors(AuditInterceptor)
+  @Audit(AuditAction.MARKS_ASSIGNED)
+  bulkGradeAndPublish(
+    @GetUser('facultyProfileId') facultyId: string,
+    @Body() dto: BulkGradeDto,
+  ) {
+    return this.assignmentsService.bulkGradeAndPublish(facultyId, dto);
+  }
 
   @Post()
   @Roles(Role.FACULTY)

@@ -2,8 +2,9 @@ import { Injectable, BadRequestException, ForbiddenException, NotFoundException 
 import { PrismaService } from '../prisma/prisma.service';
 import { AcademicContextService } from '../academic/academic-context.service';
 import { StorageService } from '../common/storage/storage.service';
-import { AssignmentStatus, GradingStatus, Role, LifecycleStatus } from '@prisma/client';
+import { AssignmentStatus, GradingStatus, Role, LifecycleStatus, AssignmentCategory } from '@prisma/client';
 import * as path from 'path';
+import { BulkGradeDto } from './dto/assignments.dto';
 
 type RequestUser = {
   userId: string;
@@ -34,6 +35,68 @@ export class AssignmentsService {
     if (!hasAccess) {
       throw new ForbiddenException('You do not have permission to access this assignment resource');
     }
+  }
+
+  /**
+   * Creates a marks-only assignment and grades students in one flow.
+   */
+  async bulkGradeAndPublish(facultyId: string, dto: BulkGradeDto) {
+    const activeSession = await this.academicContext.getActiveAcademicSession();
+    if (!activeSession) {
+      throw new BadRequestException('No active academic session found');
+    }
+
+    // Validate ownership
+    const facultyMapping = await this.prisma.facultyAssignment.findFirst({
+      where: {
+        facultyId,
+        sectionId: dto.sectionId,
+        subjectId: dto.subjectId,
+        termId: activeSession.term.id,
+        status: LifecycleStatus.ACTIVE,
+      }
+    });
+
+    if (!facultyMapping) {
+      throw new ForbiddenException('You do not have access to this section/subject');
+    }
+
+    // Use a transaction for atomic creation
+    return this.prisma.$transaction(async (tx) => {
+      // 1. Create the Assignment (directly PUBLISHED)
+      const assignment = await tx.assignment.create({
+        data: {
+          title: dto.title,
+          templateId: dto.templateId,
+          sectionId: dto.sectionId,
+          subjectId: dto.subjectId,
+          facultyAssignmentId: facultyMapping.id,
+          termId: activeSession.term.id,
+          academicYearId: activeSession.year.id,
+          maxMarks: dto.maxMarks,
+          dueDate: new Date(), 
+          status: AssignmentStatus.PUBLISHED,
+          category: AssignmentCategory.MARKS_ONLY,
+          allowResubmissions: false,
+        }
+      });
+
+      // 2. Create Submissions for every student provided
+      const submissionsData = dto.grades.map(g => ({
+        assignmentId: assignment.id,
+        studentEnrollmentId: g.studentEnrollmentId,
+        finalMarks: g.marks,
+        gradingStatus: GradingStatus.GRADED,
+        feedback: g.feedback,
+        submittedAt: new Date(),
+      }));
+
+      await tx.assignmentSubmission.createMany({
+        data: submissionsData
+      });
+
+      return assignment;
+    });
   }
 
   /**
@@ -276,6 +339,7 @@ export class AssignmentsService {
     return this.prisma.$transaction(async (tx) => {
       // Find or create submission container
       let submission = existingSubmission;
+      const isNewSubmission = !submission;
       if (!submission) {
         submission = await tx.assignmentSubmission.create({
           data: {
@@ -306,7 +370,7 @@ export class AssignmentsService {
       });
 
       // Update submission container with latest version
-      return tx.assignmentSubmission.update({
+      const updated = await tx.assignmentSubmission.update({
         where: { id: submission.id },
         data: {
           latestVersionId: version.id,
@@ -315,6 +379,10 @@ export class AssignmentsService {
           isLateSubmission: isAfterDeadline,
         },
       });
+
+      console.log(`[ASSIGNMENT_DEBUG] submitAssignment | assignmentId=${assignmentId} | enrollmentId=${context.enrollment.id} | submissionId=${updated.id} | version=${version.versionNumber} | new=${isNewSubmission} | late=${isAfterDeadline}`);
+
+      return updated;
     });
   }
 

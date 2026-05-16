@@ -478,6 +478,7 @@ model Assignment {
   title               String
   instructions        String?
   templateId          String           @map("template_id")
+  category            AssignmentCategory @default(UPLOAD_BASED)
   sectionId           String           @map("section_id")
   subjectId           String           @map("subject_id")
   facultyAssignmentId String           @map("faculty_assignment_id")

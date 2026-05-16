@@ -249,19 +249,44 @@ export class AcademicContextService {
 
     if (role === Role.FACULTY) {
       const context = await this.resolveFacultyContext(userId);
-      
+
       // Faculty MUST have mapping for BOTH section and subject
       if (sectionId && subjectId) {
         const hasMapping = context.assignments.some(
           (a: any) => a.sectionId === sectionId && a.subjectId === subjectId
         );
-        return hasMapping;
+        if (hasMapping) return true;
+
+        // Fallback: a faculty member always has access to assignments they directly own,
+        // even if the FacultyAssignment mapping lifecycle status changed after creation.
+        if (resource.assignmentId) {
+          const owned = await this.prisma.assignment.findFirst({
+            where: { id: resource.assignmentId, facultyAssignment: { facultyId: context.profile.id } },
+            select: { id: true },
+          });
+          if (owned) return true;
+        }
+
+        // Fallback via submission: for grading/reopen routes where the URL carries a submission UUID.
+        const resolvedSubmissionId = resource.submissionId || resource.fallbackId;
+        if (resolvedSubmissionId) {
+          const submissionOwned = await this.prisma.assignmentSubmission.findFirst({
+            where: {
+              id: resolvedSubmissionId,
+              assignment: { facultyAssignment: { facultyId: context.profile.id } },
+            },
+            select: { id: true },
+          });
+          if (submissionOwned) return true;
+        }
+
+        return false;
       }
 
       // Fallback for single-resource checks (less secure, but sometimes needed for general views)
       if (sectionId && !context.accessibleSections.includes(sectionId)) return false;
       if (subjectId && !context.accessibleSubjects.includes(subjectId)) return false;
-      
+
       return true;
     }
 

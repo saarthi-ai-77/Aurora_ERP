@@ -127,11 +127,10 @@ export class AcademicController {
     return this.enrollmentService.addStudentsToSection(sectionId, dto.studentIds, section.term.id);
   }
 
-  @Get('sections/:id/students')
+  @Get('sections/:sectionId/students')
   @Roles(Role.ADMIN, Role.FACULTY)
-  @UseGuards(AcademicAccessGuard)
   async getSectionStudents(
-    @Param('id', ParseUUIDPipe) sectionId: string,
+    @Param('sectionId', ParseUUIDPipe) sectionId: string,
     @Query() query: PaginationQueryDto,
   ) {
     return this.academicEngine.getSectionStudents(sectionId, query);

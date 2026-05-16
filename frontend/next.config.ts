@@ -10,6 +10,7 @@ const BACKEND_ORIGIN =
 
 const nextConfig: NextConfig = {
   devIndicators: false,
+  distDir: process.env.BUILD_DIR || '.next',
   async rewrites() {
     return [
       {

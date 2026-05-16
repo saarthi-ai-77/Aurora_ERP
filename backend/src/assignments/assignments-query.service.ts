@@ -91,6 +91,7 @@ export class AssignmentsQueryService {
       this.prisma.assignment.count({ where }),
     ]);
 
+
     // Calculate missed counts for each assignment
     const enhancedAssignments = assignments.map(a => {
       const totalStudents = a.section._count.studentEnrollments;
@@ -108,8 +109,7 @@ export class AssignmentsQueryService {
   }
 
   /**
-   * Returns student list and their submission status for an assignment.
-   * Every student in the section is returned, even if they haven't submitted.
+   * Returns every student in the section with their submission status.
    */
   async getAssignmentSubmissions(assignmentId: string, requester: RequestUser) {
     await this.ensureAssignmentAccess(requester, { assignmentId });
@@ -119,14 +119,17 @@ export class AssignmentsQueryService {
       select: { sectionId: true, termId: true }
     });
 
-    if (!assignment) return { data: [] };
+    if (!assignment) {
+      console.warn(`[DIAG] Assignment ${assignmentId} NOT FOUND in DB`);
+      return [];
+    }
 
-    // 1. Fetch ALL students enrolled in this section
+    console.log(`[DIAG] assignment.sectionId=${assignment.sectionId} assignment.termId=${assignment.termId}`);
+
+    // 1. Fetch all students enrolled in this section
     const enrollments = await this.prisma.studentEnrollment.findMany({
       where: {
         sectionId: assignment.sectionId,
-        termId: assignment.termId,
-        status: 'ACTIVE',
       },
       include: {
         student: {
@@ -140,35 +143,68 @@ export class AssignmentsQueryService {
       orderBy: { student: { registrationNumber: 'asc' } }
     });
 
-    // 2. Fetch existing submissions
+    // 2. Fetch existing submissions with their enrollment data
     const submissions = await this.prisma.assignmentSubmission.findMany({
       where: { assignmentId },
       include: {
+        enrollment: {
+          include: {
+            student: {
+              select: {
+                firstName: true,
+                lastName: true,
+                registrationNumber: true,
+              },
+            },
+          },
+        },
         versions: {
           orderBy: { versionNumber: 'desc' },
           take: 1,
-        }
+        },
+      },
+    });
+
+    console.log(`[DIAG] enrollments found=${enrollments.length} | submissions found=${submissions.length}`);
+
+    // 3. Merge: Start with all submissions to ensure they are ALWAYS visible
+    const resultsMap = new Map<string, any>();
+
+    for (const sub of submissions) {
+      resultsMap.set(sub.studentEnrollmentId, {
+        id: sub.id,
+        enrollment: sub.enrollment,
+        gradingStatus: sub.gradingStatus,
+        hasSubmission: true,
+        submittedAt: sub.submittedAt,
+        finalMarks: sub.finalMarks,
+        isLateSubmission: sub.isLateSubmission,
+        versions: this.mapVersions(sub.versions),
+        latestVersionId: sub.latestVersionId,
+      });
+    }
+
+    // 4. Fill in missing students from the roster
+    for (const enrollment of enrollments) {
+      if (!resultsMap.has(enrollment.id)) {
+        resultsMap.set(enrollment.id, {
+          id: `pending-${enrollment.id}`,
+          enrollment,
+          gradingStatus: 'NOT_SUBMITTED',
+          hasSubmission: false,
+          submittedAt: null,
+          finalMarks: null,
+          versions: [],
+          latestVersionId: null,
+        });
       }
-    });
+    }
 
-    // 3. Merge: Every student gets a row
-    const fullList = enrollments.map(enrollment => {
-      const submission = submissions.find(s => s.studentEnrollmentId === enrollment.id);
-      
-      return {
-        id: submission?.id || `pending-${enrollment.id}`,
-        enrollment,
-        gradingStatus: submission?.gradingStatus || 'NOT_SUBMITTED',
-        finalMarks: submission?.finalMarks || null,
-        submittedAt: submission?.submittedAt || null,
-        isLateSubmission: submission?.isLateSubmission || false,
-        versions: submission ? this.mapVersions(submission.versions) : [],
-        latestVersionId: submission?.latestVersionId || null,
-        hasSubmission: !!submission
-      };
-    });
+    const fullList = Array.from(resultsMap.values()).sort((a, b) =>
+      (a.enrollment?.student?.lastName || '').localeCompare(b.enrollment?.student?.lastName || '')
+    );
 
-    return { data: fullList };
+    return fullList;
   }
 
   /**
@@ -178,7 +214,10 @@ export class AssignmentsQueryService {
     await this.ensureAssignmentAccess(requester, { assignmentId });
     return this.prisma.assignment.update({
       where: { id: assignmentId },
-      data: { dueDate: newDueDate }
+      data: { 
+        dueDate: newDueDate,
+        status: AssignmentStatus.PUBLISHED 
+      }
     });
   }
 

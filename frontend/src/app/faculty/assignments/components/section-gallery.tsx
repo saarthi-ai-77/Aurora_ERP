@@ -1,9 +1,7 @@
 "use client";
 
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { BookOpen, Users, ArrowRight, GraduationCap } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { BookOpen, Users, GraduationCap, ChevronRight } from "lucide-react";
 
 interface SectionGalleryProps {
   sections: any[];
@@ -13,50 +11,53 @@ interface SectionGalleryProps {
 export function SectionGallery({ sections, onSelect }: SectionGalleryProps) {
   if (!sections || sections.length === 0) {
     return (
-      <div className="text-center py-12 bg-gray-50 rounded-xl border border-dashed">
-        <GraduationCap className="w-12 h-12 text-gray-300 mx-auto mb-3" />
-        <p className="text-gray-500 font-medium">No teaching assignments found.</p>
-        <p className="text-sm text-gray-400">Contact the administrator to assign sections to your profile.</p>
+      <div className="flex flex-col items-center justify-center py-20 border-2 border-dashed border-slate-100 rounded-2xl text-center">
+        <div className="p-4 bg-slate-50 rounded-2xl mb-4">
+          <GraduationCap className="w-8 h-8 text-slate-300" />
+        </div>
+        <p className="font-semibold text-slate-500">No teaching assignments found</p>
+        <p className="text-sm text-slate-400 mt-1">Contact the administrator to assign sections to your profile.</p>
       </div>
     );
   }
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
+    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
       {sections.map((mapping, idx) => (
-        <Card 
-          key={idx} 
-          className="group hover:border-indigo-500 hover:shadow-xl transition-all cursor-pointer overflow-hidden border-2"
+        <button
+          key={idx}
           onClick={() => onSelect(mapping)}
+          className="group text-left bg-white border-2 border-slate-100 hover:border-blue-200 hover:shadow-lg hover:shadow-blue-50 rounded-2xl p-6 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
         >
-          <CardHeader className="bg-gray-50/50 group-hover:bg-indigo-50/30 transition-colors">
-            <div className="flex justify-between items-start">
-              <Badge className="bg-indigo-600 mb-2">{mapping.subject.code}</Badge>
-              <div className="bg-white p-2 rounded-lg shadow-sm">
-                <BookOpen className="w-4 h-4 text-indigo-600" />
-              </div>
+          <div className="flex items-start justify-between mb-5">
+            <Badge className="bg-slate-900 text-white text-[11px] font-bold px-2.5 py-1">
+              {mapping.subject?.code || "N/A"}
+            </Badge>
+            <div className="p-2 bg-slate-50 group-hover:bg-blue-50 rounded-xl transition-colors">
+              <BookOpen className="w-4 h-4 text-slate-400 group-hover:text-blue-500 transition-colors" />
             </div>
-            <CardTitle className="text-xl group-hover:text-indigo-700 transition-colors">
-              {mapping.subject.name}
-            </CardTitle>
-            <CardDescription className="flex items-center gap-1 font-medium">
-              Section {mapping.section.name} • {mapping.term.name}
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="pt-6">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-4 text-sm text-gray-500">
-                <div className="flex items-center gap-1">
-                  <Users className="w-4 h-4" />
-                  <span>Class Record</span>
-                </div>
-              </div>
-              <div className="text-indigo-600 font-bold flex items-center gap-1 group-hover:translate-x-1 transition-transform">
-                Open Manager <ArrowRight className="w-4 h-4" />
-              </div>
+          </div>
+
+          <div className="space-y-1 mb-6">
+            <h3 className="text-base font-bold text-slate-900 group-hover:text-blue-600 transition-colors leading-tight">
+              {mapping.subject?.name}
+            </h3>
+            <p className="text-sm text-slate-500">
+              Section {mapping.section?.name}
+              {mapping.term?.name ? ` · ${mapping.term.name}` : ""}
+            </p>
+          </div>
+
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-1.5 text-xs text-slate-400">
+              <Users className="w-3.5 h-3.5" />
+              <span>Open workspace</span>
             </div>
-          </CardContent>
-        </Card>
+            <div className="flex items-center gap-1 text-xs font-semibold text-blue-500 group-hover:translate-x-0.5 transition-transform">
+              Manage <ChevronRight className="w-3.5 h-3.5" />
+            </div>
+          </div>
+        </button>
       ))}
     </div>
   );
