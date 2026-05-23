@@ -18,8 +18,8 @@ import { R2StorageProvider } from './r2-storage.provider';
         const supabaseUrl = config.get('SUPABASE_URL');
         const supabaseKey = config.get('SUPABASE_SERVICE_ROLE_KEY');
 
-        // If explicitly set to supabase OR if Supabase credentials exist in the environment (like on Render), use Supabase!
-        if (provider === 'supabase' || (supabaseUrl && supabaseKey && provider !== 'local')) {
+        // If Supabase credentials exist in the environment (like on Render), ALWAYS prefer Supabase over ephemeral local disk!
+        if (provider === 'supabase' || (supabaseUrl && supabaseKey)) {
           console.log('[StorageModule] Initializing Supabase Storage Provider...');
           return new SupabaseStorageProvider(config);
         }
