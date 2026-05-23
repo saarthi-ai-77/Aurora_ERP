@@ -29,6 +29,9 @@ async function bootstrap() {
 
   const app = await NestFactory.create(AppModule);
 
+  // Enable trust proxy for rate limiting (ThrottlerGuard) behind reverse proxies (Render, Vercel)
+  app.getHttpAdapter().getInstance().set('trust proxy', 1);
+
   // 2. Deployment Safety: Ensure uploads directory exists
   const uploadDir = process.env.UPLOAD_DIR || 'uploads';
   if (!fs.existsSync(uploadDir)) {

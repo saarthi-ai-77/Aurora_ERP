@@ -1,15 +1,41 @@
 "use client";
 
+import { useQuery } from "@tanstack/react-query";
 import Topbar from "@/components/layout/topbar";
-import { ChevronLeft, ChevronRight, Calendar as CalendarIcon, Clock, MapPin } from "lucide-react";
-
-const EVENTS = [
-  { id: 1, title: "Lab Report 10 Due", date: "22", month: "Feb", time: "11:00 PM", type: "Deadline", location: "Online" },
-  { id: 2, title: "Mid-Term Examination", date: "25", month: "Feb", time: "09:00 AM", type: "Exam", location: "Hall A" },
-  { id: 3, title: "Guest Lecture: AI Ethics", date: "28", month: "Feb", time: "02:00 PM", type: "Workshop", location: "Auditorium" },
-];
+import { ChevronLeft, ChevronRight, Calendar as CalendarIcon, Clock, MapPin, Loader2 } from "lucide-react";
+import { assignmentsApi } from "@/lib/api/assignments.api";
 
 export default function StudentCalendar() {
+  const { data: response, isLoading } = useQuery({
+    queryKey: ["student-assignments"],
+    queryFn: () => assignmentsApi.getStudentAssignments(),
+  });
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-[calc(100vh-var(--topbar-height))]">
+        <Loader2 className="w-8 h-8 animate-spin text-indigo-600" />
+      </div>
+    );
+  }
+
+  const assignments = response?.data || [];
+  const events = assignments.map((a: any) => {
+    const dueDate = new Date(a.dueDate);
+    return {
+      id: a.id,
+      title: a.title,
+      date: dueDate.getDate().toString(),
+      month: dueDate.toLocaleDateString("en-US", { month: "short" }),
+      time: dueDate.toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" }),
+      type: a.displayStatus || "Deadline",
+      location: a.subject ? `${a.subject.code} - ${a.subject.name}` : "Online",
+      rawDate: dueDate,
+    };
+  }).sort((a: any, b: any) => a.rawDate.getTime() - b.rawDate.getTime());
+
+  const currentMonthYear = new Date().toLocaleDateString("en-US", { month: "long", year: "numeric" });
+
   return (
     <>
       <Topbar title="Calendar" breadcrumb={["Calendar"]} />
@@ -19,7 +45,7 @@ export default function StudentCalendar() {
         {/* Header Controls */}
         <div className="flex items-center justify-between card p-4">
           <div className="flex items-center gap-4">
-            <h2 className="text-lg font-bold" style={{ color: "var(--text-primary)" }}>February 2026</h2>
+            <h2 className="text-lg font-bold" style={{ color: "var(--text-primary)" }}>{currentMonthYear}</h2>
             <div className="flex items-center gap-1">
               <button className="p-1 rounded hover:bg-gray-100"><ChevronLeft className="w-5 h-5 text-gray-500" /></button>
               <button className="text-sm font-medium px-2 py-1 rounded hover:bg-gray-100">Today</button>
@@ -35,10 +61,10 @@ export default function StudentCalendar() {
         {/* Agenda View */}
         <div className="card overflow-hidden">
           <div className="p-4" style={{ borderBottom: "1px solid var(--border)", background: "var(--bg-surface-2)" }}>
-            <h3 className="text-sm font-semibold text-gray-600 uppercase tracking-wider">Upcoming Events</h3>
+            <h3 className="text-sm font-semibold text-gray-600 uppercase tracking-wider">Upcoming Deadlines</h3>
           </div>
           <div className="divide-y divide-gray-200">
-            {EVENTS.map(event => (
+            {events.map((event: any) => (
               <div key={event.id} className="p-5 flex items-start gap-6 hover:bg-gray-50 transition-colors">
                 <div className="flex flex-col items-center justify-center w-16 h-16 rounded-lg bg-gray-50 border border-gray-200 flex-shrink-0">
                   <span className="text-xs font-bold text-gray-500 uppercase">{event.month}</span>
@@ -58,7 +84,7 @@ export default function StudentCalendar() {
                 </div>
               </div>
             ))}
-            {EVENTS.length === 0 && (
+            {events.length === 0 && (
               <div className="p-8 text-center text-gray-500">No upcoming events this month.</div>
             )}
           </div>

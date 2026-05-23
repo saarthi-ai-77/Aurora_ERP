@@ -73,12 +73,30 @@ export class AcademicContextService {
 
     if (!student) throw new NotFoundException('Student profile not found');
 
-    // Fetch enrolled subjects for the student's current term
+    // Fetch enrolled subjects for the student's current term, including faculty assigned to this section
     const enrolledSubjects = await this.prisma.subject.findMany({
       where: {
         termId: student.section.termId,
         status: LifecycleStatus.ACTIVE,
         isArchived: false
+      },
+      include: {
+        facultyAssignments: {
+          where: {
+            sectionId: student.sectionId,
+            status: LifecycleStatus.ACTIVE,
+            isArchived: false
+          },
+          include: {
+            faculty: {
+              select: {
+                firstName: true,
+                lastName: true,
+                designation: true
+              }
+            }
+          }
+        }
       }
     });
 
