@@ -62,11 +62,15 @@ export class NoticeboardService {
   }
 
   async createNotice(userId: string, dto: CreateNoticeDto) {
+    const status = dto.status || NoticeStatus.DRAFT;
+    const publishedAt = status === NoticeStatus.PUBLISHED ? new Date() : null;
+
     return this.prisma.notice.create({
       data: {
         ...dto,
         postedById: userId,
-        status: NoticeStatus.DRAFT,
+        status,
+        publishedAt,
       } as any,
     });
   }

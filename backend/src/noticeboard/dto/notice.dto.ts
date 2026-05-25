@@ -7,7 +7,7 @@ import {
   IsDateString,
   MaxLength,
 } from 'class-validator';
-import { NoticeCategory, NoticePriority, Role } from '@prisma/client';
+import { NoticeCategory, NoticePriority, Role, NoticeStatus } from '@prisma/client';
 
 export class CreateNoticeDto {
   @IsString()
@@ -23,6 +23,10 @@ export class CreateNoticeDto {
   @IsOptional()
   @IsEnum(NoticePriority)
   priority?: NoticePriority;
+
+  @IsOptional()
+  @IsEnum(NoticeStatus)
+  status?: NoticeStatus;
 
   @IsOptional()
   @IsBoolean()
@@ -65,6 +69,10 @@ export class UpdateNoticeDto {
   @IsOptional()
   @IsEnum(NoticePriority)
   priority?: NoticePriority;
+
+  @IsOptional()
+  @IsEnum(NoticeStatus)
+  status?: NoticeStatus;
 
   @IsOptional()
   @IsBoolean()
