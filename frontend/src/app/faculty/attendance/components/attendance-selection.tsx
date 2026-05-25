@@ -3,7 +3,6 @@
 import { useState, useEffect } from "react";
 import { academicApi } from "@/lib/api";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
 import { Loader2, BookOpen, Users, Calendar } from "lucide-react";
 
@@ -46,9 +45,10 @@ export function AttendanceSelection({ onSelected }: Props) {
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div className="space-y-2">
             <label className="text-sm font-medium text-gray-700">Teaching Assignment</label>
-            <Select 
+            <select 
               value={selectedAssignmentId} 
               onChange={(e) => setSelectedAssignmentId(e.target.value)}
+              className="flex h-10 w-full rounded-md border border-slate-200 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
             >
               <option value="" disabled>Select a subject & section</option>
               {assignments.map((a: any) => (
@@ -56,7 +56,7 @@ export function AttendanceSelection({ onSelected }: Props) {
                   {a.subject.name} - Section {a.section.name} ({a.term.name})
                 </option>
               ))}
-            </Select>
+            </select>
           </div>
         </div>
 
