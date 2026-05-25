@@ -57,12 +57,16 @@ export class SupabaseStorageProvider implements IStorageProvider {
   }
 
   async createSignedUrl(filePath: string, expiresInSeconds = 3600): Promise<string> {
+    console.log(`[SupabaseStorageProvider] Generating signed URL for: ${filePath}`);
     const { data, error } = await this.supabase.storage
       .from(BUCKET)
       .createSignedUrl(filePath, expiresInSeconds);
 
     if (error || !data?.signedUrl) {
-      throw new InternalServerErrorException('Failed to create signed URL');
+      console.error('[SupabaseStorageProvider] Supabase createSignedUrl error:', error);
+      throw new InternalServerErrorException(
+        `Failed to create signed URL: ${error?.message || 'Unknown Supabase error'}`,
+      );
     }
 
     return data.signedUrl;
